@@ -18,7 +18,7 @@ let isManualDisconnect = false;
 let heartbeatInterval;
 let config = { sendStats: true, openOnStartup: false };
 
-const autoLauncher = new AutoLaunch({ name: 'LachlanAI', path: app.getPath('exe') });
+const autoLauncher = new AutoLaunch({ name: 'Neural Gateway', path: app.getPath('exe') });
 
 function createWindow() {
     mainWindow = new BrowserWindow({
