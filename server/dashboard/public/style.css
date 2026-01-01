@@ -1,0 +1,186 @@
+/* i am still using ai for comments in css files. deal with it. */
+
+
+:root {
+  --bg: #0b0c10;
+  --bg-soft: #0b0c10;
+  --text: #e6e9ef;
+  --muted: #a3adc2;
+  --link: #8fd3ff;
+  --accent: #7af;
+  --card: #11131a;
+  --border: #222635;
+  --ok: #79e08f;
+  --warn: #ffd56a;
+  --danger: #ff7a7a;
+  --radius: 14px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
+  --maxw: 1100px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: linear-gradient(180deg, var(--bg), var(--bg-soft));
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.55;
+  min-height: 100vh;
+}
+
+/* Layout */
+.wrap { max-width: var(--maxw); margin-inline: auto; padding: 28px; }
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-top: 18px; }
+.tile { grid-column: span 12; padding: 18px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+.half { grid-column: span 6; }
+@media (max-width: 800px) { .half { grid-column: span 12; } }
+
+/* Typography */
+h1, h2, h3 { margin: 0 0 10px; line-height: 1.1; }
+h1 { font-size: clamp(24px, 4vw, 32px); }
+.kicker { font: 600 12px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 10px; display: block; }
+.muted { color: var(--muted); font-size: 0.9em; }
+code { font-family: var(--mono); background: var(--bg-soft); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border); font-size: 0.85em; }
+
+/* Header */
+header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 20px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+.brand { display: flex; align-items: center; gap: 14px; font-weight: 700; font-size: 1.2rem; }
+.brand span { color: var(--accent); }
+nav a { color: var(--muted); margin-left: 15px; font-size: 0.9rem; }
+nav a:hover { color: var(--text); }
+
+/* Forms */
+input[type="text"], input[type="password"], input[type="email"] {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+  transition: border-color 0.2s;
+}
+input:focus { outline: none; border-color: var(--accent); }
+
+button, .btn {
+  display: inline-block;
+  padding: 8px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+button:hover, .btn:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+.btn-primary { background: var(--accent); color: #000; border: none; font-weight: 600; }
+.btn-primary:hover { background: #59d; color: #fff; }
+.btn-danger { color: var(--danger); border-color: var(--danger); }
+.btn-danger:hover { background: var(--danger); color: #000; }
+
+/* Tables */
+table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; }
+th { text-align: left; padding: 12px; font-family: var(--mono); font-size: 0.75rem; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+td { padding: 14px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+tr:last-child td { border-bottom: none; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.dot-green { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.dot-red { background: var(--danger); }
+.dot-orange { background: var(--warn); }
+
+/* Toggle Switch (CSS Only) */
+.toggle-btn { width: 100%; text-align: center; }
+.toggle-on { background: rgba(255, 213, 106, 0.1); border-color: var(--warn); color: var(--warn); }
+.toggle-off { opacity: 0.5; }
+
+/* Login / Splash */
+.splash-container { height: 100vh; display: flex; align-items: center; justify-content: center; }
+.splash-card { background: var(--card); padding: 40px; border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 380px; box-shadow: var(--shadow); text-align: center; }
+
+/* Admin Stats */
+.stat-value { font-size: 2.5rem; font-weight: 700; color: var(--text); }
+.stat-label { color: var(--muted); font-family: var(--mono); font-size: 0.8rem; }
+
+/* --- TABLE TWEAKS --- */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+table {
+  width: 100%;
+  margin: 0; /* Reset margin since it's in a wrapper */
+  white-space: nowrap; /* Prevent awkward wrapping on short text */
+}
+
+/* Give the URL column space to breathe but force wrap if needed */
+.col-url {
+  white-space: normal;
+  word-break: break-all;
+  min-width: 250px;
+  max-width: 400px;
+}
+
+/* API Key Badge */
+.apikey-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+  cursor: pointer;
+  width: fit-content;
+  transition: all 0.2s;
+}
+
+.apikey-badge:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(119, 170, 255, 0.1);
+}
+
+.apikey-badge .mask { letter-spacing: 2px; }
+.apikey-badge .icon { opacity: 0.5; }
+
+/* Status Indicators */
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.stat-on { background: rgba(255, 213, 106, 0.15); color: var(--warn); border: 1px solid rgba(255, 213, 106, 0.3); }
+.stat-secure { background: rgba(121, 224, 143, 0.15); color: var(--ok); border: 1px solid rgba(121, 224, 143, 0.3); }
+
+/* Compact Form Elements in Table */
+.tbl-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  width: 140px;
+}
+.tbl-btn {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+}

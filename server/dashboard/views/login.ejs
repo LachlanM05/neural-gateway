@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login // NeuralGateway</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="splash-container">
+    <div class="splash-card">
+      <div class="kicker">Restricted Access</div>
+      <h1>Identify Yourself.</h1>
+      <p class="muted">Access to the Neural Passthrough Gateway.</p>
+      
+      <form action="/login" method="POST" style="margin-top: 24px;">
+        <input type="text" name="username" placeholder="Username" required autocomplete="off">
+        <input type="password" name="password" placeholder="Password" required>
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Authenticate</button>
+      </form>
+
+      <div style="margin-top: 20px; font-size: 0.8rem;">
+        <a href="/" class="muted">Need an account? Register</a>
+        <!-- TODO: make the reigster part of the site not look like utter shit. -->
+      </div>
+    </div>
+  </div>
+</body>
+</html>

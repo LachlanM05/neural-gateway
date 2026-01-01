@@ -1,0 +1,8 @@
+client/electron-app/dist
+client/electron-app/node_modules
+
+server/node_modules/
+server/db.js
+.env
+.DS_Store
+*.db 
