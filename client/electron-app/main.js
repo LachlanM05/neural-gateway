@@ -59,7 +59,7 @@ function createTray() {
         const contextMenu = Menu.buildFromTemplate([
             { label: 'Open Interface', click: () => mainWindow.show() },
             { type: 'separator' },
-            { label: 'Quit LachlanAI', click: () => { app.isQuiting = true; app.quit(); } }
+            { label: 'Quit Neural Gateway', click: () => { app.isQuiting = true; app.quit(); } }
         ]);
 
         tray.setToolTip('Lachlan AI Client');
