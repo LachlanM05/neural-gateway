@@ -77,13 +77,23 @@
         </div>
 
         <div id="loginForm">
-            <input type="text" id="slug" placeholder="Client Slug (e.g. home-pc)">
-            <input type="password" id="apiKey" placeholder="API Key (sk-...)">
+            <div style="margin-bottom: 10px;">
+                <input type="text" id="usernameInput" placeholder="Username (e.g. LachlanM05)" spellcheck="false" style="width: 100%; padding: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px;">
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <input type="text" id="slugInput" placeholder="Client Slug (e.g. home-pc)" spellcheck="false" style="width: 100%; padding: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <input type="password" id="keyInput" placeholder="API Key (sk-...)" spellcheck="false" style="width: 100%; padding: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px;">
+            </div>
+
             <button id="connectBtn" class="btn-main">Connect Node</button>
         </div>
         
         <div id="connectedControls" style="display: none;">
-            <p style="text-align:center; margin-bottom:15px;">Tunnel is active. Do not close.</p>
+            <p style="text-align:center; margin-bottom:15px; font-size: 0.9rem; opacity: 0.8;">Tunnel is active.<br>Do not close this window.</p>
             <button id="disconnectBtn" class="btn-disconnect">Disconnect</button>
         </div>
     </div>

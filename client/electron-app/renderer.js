@@ -1,66 +1,84 @@
-const connectBtn = document.getElementById('connectBtn');
-const disconnectBtn = document.getElementById('disconnectBtn');
-const slugInput = document.getElementById('slug');
-const keyInput = document.getElementById('apiKey');
+// Grab Elements
 const statusText = document.getElementById('statusText');
-const statusIndicator = document.getElementById('statusIndicator');
+const statusDot = document.getElementById('statusDot'); // Ensure you have this in HTML or remove if not using dot
 const loginForm = document.getElementById('loginForm');
 const connectedControls = document.getElementById('connectedControls');
 
-// settings buttons
-const startupBtn = document.getElementById('startupBtn');
-const statsBtn = document.getElementById('statsBtn');
+// Inputs
+// MAKE SURE these IDs match your index.html exactly!
+const usernameInput = document.getElementById('usernameInput'); 
+const slugInput = document.getElementById('slugInput');
+const keyInput = document.getElementById('keyInput');
 
-let isStatsEnabled = true;
-let isStartupEnabled = false;
+// Buttons
+const connectBtn = document.getElementById('connectBtn');
+const disconnectBtn = document.getElementById('disconnectBtn');
 
-window.api.onStatus((status) => {
-    
-    statusText.innerText = status; // show full status message
+// Toggles (Assumes you have these IDs in HTML)
+const startupToggle = document.getElementById('startupToggle');
+const statsToggle = document.getElementById('statsToggle');
 
-    if (status === 'Connected') {
-        statusIndicator.className = 'status-row connected';
-        statusText.style.color = 'var(--ok)'; // green
-        loginForm.style.display = 'none';
-        connectedControls.style.display = 'block';
-    } else {
-        statusIndicator.className = 'status-row disconnected';
-        statusText.style.color = 'var(--danger)'; // whole lotta red
-        loginForm.style.display = 'block';
-        connectedControls.style.display = 'none';
+// 1. Load Saved Data on Startup
+usernameInput.value = localStorage.getItem('username') || '';
+slugInput.value = localStorage.getItem('slug') || '';
+keyInput.value = localStorage.getItem('apiKey') || '';
+
+// 2. Connect Button Listener
+connectBtn.addEventListener('click', async () => {
+    const username = usernameInput.value.trim();
+    const slug = slugInput.value.trim();
+    const apiKey = keyInput.value.trim();
+
+    if (!username || !slug || !apiKey) {
+        // Simple alert since we don't have a log box in your specific snippet
+        alert('Please fill in Username, Slug, and API Key'); 
+        return;
     }
+
+    // Save for next time
+    localStorage.setItem('username', username);
+    localStorage.setItem('slug', slug);
+    localStorage.setItem('apiKey', apiKey);
+
+    // Send everything to Main
+    // THIS WAS THE MISSING PART
+    await window.api.toggleConnection({ username, apiKey, slug });
 });
 
-connectBtn.addEventListener('click', () => {
-    window.api.toggleConnection({ 
+// 3. Disconnect Button Listener
+disconnectBtn.addEventListener('click', async () => {
+    // We send the current creds just in case, but Main handles the disconnect logic
+    await window.api.toggleConnection({ 
+        username: usernameInput.value, 
         apiKey: keyInput.value, 
         slug: slugInput.value 
     });
 });
 
-disconnectBtn.addEventListener('click', () => {
-    window.api.toggleConnection({}); // empty triggers a disconnect logic in main
-});
+// 4. Handle Status Updates from Main
+window.api.onStatus((message) => {
+    // Show full status message
+    statusText.innerText = message; 
 
-// settings logic
-startupBtn.addEventListener('click', () => {
-    isStartupEnabled = !isStartupEnabled;
-    updateToggle(startupBtn, isStartupEnabled);
-    window.api.toggleStartup(isStartupEnabled);
-});
+    // Simple State Machine for UI
+    if (message.includes('Connected') && !message.includes('Error')) {
+        // ONLINE STATE
+        // If you are using specific classes for the indicator:
+        if(document.getElementById('statusIndicator')) {
+             document.getElementById('statusIndicator').className = 'status-row connected';
+        }
+        
+        statusText.style.color = 'var(--ok)'; // Green
+        loginForm.style.display = 'none';
+        connectedControls.style.display = 'block';
+    } else if (message.includes('Disconnected') || message.includes('Error')) {
+        // OFFLINE STATE
+        if(document.getElementById('statusIndicator')) {
+             document.getElementById('statusIndicator').className = 'status-row disconnected';
+        }
 
-statsBtn.addEventListener('click', () => {
-    isStatsEnabled = !isStatsEnabled;
-    updateToggle(statsBtn, isStatsEnabled);
-    window.api.toggleStats(isStatsEnabled);
-});
-
-function updateToggle(btn, active) {
-    if (active) {
-        btn.classList.add('active');
-        btn.innerText = 'ON';
-    } else {
-        btn.classList.remove('active');
-        btn.innerText = 'OFF';
+        statusText.style.color = 'var(--danger)'; // Red
+        loginForm.style.display = 'block';
+        connectedControls.style.display = 'none';
     }
-}
+});

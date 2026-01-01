@@ -5,31 +5,32 @@ const axios = require('axios');
 const si = require('systeminformation');
 const AutoLaunch = require('auto-launch');
 
-// conf
-const DASHBOARD_URL = 'https://ai.lachlanm05.com';     // stats location
-const GATEWAY_WS = 'wss://api.lachlanm05.com/tunnel';  // traffic tunnel
+// --- CONFIG ---
+const DASHBOARD_URL = 'https://ai.lachlanm05.com';     
+const GATEWAY_WS = 'wss://api.lachlanm05.com/tunnel';  
 const LOCAL_OLLAMA = 'http://127.0.0.1:11434';
 
 let mainWindow;
 let tray;
 let socket;
 let isConnected = false;
+let isManualDisconnect = false;
 let heartbeatInterval;
 let config = { sendStats: true, openOnStartup: false };
 
-// auto launcher
 const autoLauncher = new AutoLaunch({ name: 'LachlanAI', path: app.getPath('exe') });
 
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 400, 
-        height: 650,
+        height: 650, 
         resizable: false,
         icon: path.join(__dirname, 'icon.ico'),
+        autoHideMenuBar: true,
         webPreferences: { 
-            preload: path.join(__dirname, 'preload.js'),
-            nodeIntegration: false,
-            contextIsolation: true
+            preload: path.join(__dirname, 'preload.js'), 
+            nodeIntegration: false, 
+            contextIsolation: true 
         },
         show: false
     });
@@ -40,6 +41,7 @@ function createWindow() {
         mainWindow.show();
     });
 
+    // Minimize to Tray instead of closing
     mainWindow.on('close', (event) => {
         if (!app.isQuiting) {
             event.preventDefault();
@@ -50,45 +52,81 @@ function createWindow() {
 
 function createTray() {
     const iconPath = path.join(__dirname, 'icon.ico');
+    
     try {
         tray = new Tray(iconPath);
+        
         const contextMenu = Menu.buildFromTemplate([
-            { label: 'Show App', click: () => mainWindow.show() },
-            { label: 'Quit', click: () => { app.isQuiting = true; app.quit(); } }
+            { label: 'Open Interface', click: () => mainWindow.show() },
+            { type: 'separator' },
+            { label: 'Quit LachlanAI', click: () => { app.isQuiting = true; app.quit(); } }
         ]);
+
         tray.setToolTip('Lachlan AI Client');
         tray.setContextMenu(contextMenu);
+
+        // Left-Click to Open
+        tray.on('click', () => {
+            if (mainWindow.isVisible()) {
+                mainWindow.hide();
+            } else {
+                mainWindow.show();
+                mainWindow.focus();
+            }
+        });
+
+        // Double click backup
         tray.on('double-click', () => mainWindow.show());
+
     } catch (e) {
-        console.log("Tray Error:", e);
+        console.error("Tray Icon Failed:", e);
     }
 }
 
-// log to ui
-function sendLog(msg) {
+// --- DIAGNOSTICS ---
+async function checkOllama() {
+    try {
+        await axios.get(LOCAL_OLLAMA);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function sendToUI(msg, type='info') {
     if (mainWindow && !mainWindow.isDestroyed()) {
-        console.log(msg);
+        mainWindow.webContents.send('status-update', msg);
+        if(type === 'error') console.error(msg);
+        else console.log(msg);
     }
 }
 
-// TUNNEL LOGIC
-function connectTunnel(apiKey, slug) {
+// --- TUNNEL LOGIC ---
+async function connectTunnel(username, apiKey, slug) {
     if (isConnected) return;
     
-    sendLog(`[Connecting] ${GATEWAY_WS}...`);
+    // Reset manual flag so we can reconnect
+    isManualDisconnect = false;
+
+    // 1. Check Ollama First
+    const ollamaUp = await checkOllama();
+    if (!ollamaUp) {
+        sendToUI('Error: Local Ollama is OFFLINE (Check Port 11434)');
+        return;
+    }
+
+    sendToUI(`Connecting to Gateway...`);
     
-    socket = new WebSocket(`${GATEWAY_WS}?slug=${slug}&key=${apiKey}`);
+    // UPDATED: Pass username in URL query
+    const wsUrl = `${GATEWAY_WS}?username=${username}&slug=${slug}&key=${apiKey}`;
+    socket = new WebSocket(wsUrl);
     
     socket.on('open', () => {
-        console.log('[WS] Connected');
         isConnected = true;
-        mainWindow.webContents.send('status-update', 'Connected');
-        
-        // 1. send stats immedietaly 
+        sendToUI('Connected (Tunnel Active)');
         if (config.sendStats) sendSystemStats(apiKey, slug);
 
-        // 2. Start Heartbeat
-        // cloudflare kills idle connections, send heartbeat to stop.
+        // Heartbeat to keep connection alive
         clearInterval(heartbeatInterval);
         heartbeatInterval = setInterval(() => {
             if (socket.readyState === WebSocket.OPEN) {
@@ -99,69 +137,60 @@ function connectTunnel(apiKey, slug) {
 
     socket.on('message', async (data) => {
         try {
-            // log that we start working on api request
-            mainWindow.webContents.send('status-update', 'Processing Request...');
-            
             const req = JSON.parse(data);
-            const startTime = Date.now();
+            sendToUI(`Processing: ${req.method} ...`);
             
-            console.log(`[Request] ${req.method} ${req.path}`);
-
-            // forward to local ollama
+            // Forward to Ollama
             const response = await axios({
                 method: req.method,
                 url: `${LOCAL_OLLAMA}/${req.path}`,
                 data: req.body,
-                timeout: 300000, // 5 minutes for long model times, or long typing times.
+                timeout: 300000, 
                 validateStatus: () => true 
             });
 
-            const duration = Date.now() - startTime;
-            console.log(`[Response] ${response.status} (${duration}ms)`);
+            sendToUI(`Sent Response: ${response.status}`);
 
-            // send res back
             socket.send(JSON.stringify({
                 requestId: req.requestId,
                 status: response.status,
                 data: response.data
             }));
-
-            mainWindow.webContents.send('status-update', 'Connected (Idle)');
+            
+            setTimeout(() => {
+                if(isConnected) sendToUI('Connected (Idle)');
+            }, 2000);
 
         } catch (e) {
-            console.error('[Tunnel Error]', e.message);
-            // inform server of fail
+            sendToUI(`Ollama Error: ${e.message}`);
+            // Tell Gateway we failed
             if (socket.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({
                     requestId: JSON.parse(data).requestId,
-                    status: 500,
-                    data: { error: 'Client Hardware Error: ' + e.message }
+                    status: 502,
+                    data: { error: 'Local Client Error: ' + e.message }
                 }));
             }
-            mainWindow.webContents.send('status-update', 'Error: Ollama Failed');
         }
     });
 
-    socket.on('close', (code, reason) => {
+    socket.on('close', (code) => {
         isConnected = false;
         clearInterval(heartbeatInterval);
-        console.log(`[WS] Closed: ${code}`);
+        
+        let msg = 'Disconnected';
+        if (code === 1008) msg = 'Error: Invalid Credentials';
+        sendToUI(msg);
 
-        let statusMsg = 'Disconnected';
-        if (code === 1008) statusMsg = 'Error: Invalid API Key';
-        else if (code === 1006) statusMsg = 'Error: Connection Dropped';
-
-        if (!mainWindow.isDestroyed()) mainWindow.webContents.send('status-update', statusMsg);
-
-        // auto-retry unless auth error
-        if (code !== 1008) {
-            setTimeout(() => connectTunnel(apiKey, slug), 5000);
+        // ONLY Retry if it wasn't a manual disconnect AND wasn't an auth error
+        if (!isManualDisconnect && code !== 1008) {
+            sendToUI('Connection lost. Retrying in 5s...');
+            setTimeout(() => connectTunnel(username, apiKey, slug), 5000);
         }
     });
 
     socket.on('error', (err) => {
-        console.error('[WS] Error:', err.message);
-        if (!mainWindow.isDestroyed()) mainWindow.webContents.send('status-update', 'Connection Error');
+        if (!isManualDisconnect) sendToUI('Connection Error');
     });
 }
 
@@ -171,48 +200,47 @@ async function sendSystemStats(apiKey, slug) {
         const mem = await si.mem();
         const os = await si.osInfo();
         
-        const specs = {
-            cpu: `${cpu.manufacturer} ${cpu.brand}`,
-            ram: Math.round(mem.total / 1024 / 1024 / 1024) + 'GB',
-            os: os.distro
-        };
-
-        // fixed url, can i even type atp? :sob:
         await axios.post(`${DASHBOARD_URL}/api/report-stats`, {
-            apiKey, slug, specs, uptime: process.uptime()
+            apiKey, slug, 
+            specs: { 
+                cpu: `${cpu.manufacturer} ${cpu.brand}`, 
+                ram: Math.round(mem.total/1024/1024/1024) + 'GB', 
+                os: os.distro 
+            }, 
+            uptime: process.uptime()
         });
-        console.log('[Stats] Sent successfully');
-    } catch(e) {
-        console.log('[Stats] Failed to send:', e.message);
-    }
+    } catch(e) { console.log('Stats failed', e.message); }
 }
 
-// IPC HANDLERS 
-ipcMain.handle('toggle-connection', (event, { apiKey, slug }) => {
+// --- IPC HANDLERS ---
+ipcMain.handle('toggle-connection', (event, { username, apiKey, slug }) => {
     if (isConnected) {
+        // MANUAL DISCONNECT
+        isManualDisconnect = true;
         if(socket) socket.close();
         isConnected = false;
         clearInterval(heartbeatInterval);
-        mainWindow.webContents.send('status-update', 'Disconnected');
+        sendToUI('Disconnected');
     } else {
-        connectTunnel(apiKey, slug);
+        connectTunnel(username, apiKey, slug);
     }
 });
 
-ipcMain.handle('toggle-startup', (event, enabled) => {
-    enabled ? autoLauncher.enable() : autoLauncher.disable();
-    config.openOnStartup = enabled;
+ipcMain.handle('toggle-startup', (event, enabled) => { 
+    enabled ? autoLauncher.enable() : autoLauncher.disable(); 
 });
 
-ipcMain.handle('toggle-stats', (event, enabled) => {
-    config.sendStats = enabled;
+ipcMain.handle('toggle-stats', (event, enabled) => { 
+    config.sendStats = enabled; 
 });
 
+// --- APP LIFECYCLE ---
 app.whenReady().then(() => {
     createWindow();
     createTray();
 });
 
+// Single Instance Lock
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
@@ -220,8 +248,8 @@ if (!gotTheLock) {
   app.on('second-instance', () => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
       mainWindow.show();
+      mainWindow.focus();
     }
   });
 }
