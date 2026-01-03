@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Settings // NeuralGateway</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <span>Account Settings</span>
+      </div>
+      <nav>
+        <a href="/dashboard">← Back to Dashboard</a>
+      </nav>
+    </header>
+
+    <section class="grid">
+      <div class="tile">
+        <h3>Preferences</h3>
+        <form action="/settings/update" method="POST" style="margin-top:20px;">
+            
+            <div style="margin-bottom:15px;">
+                <label style="display:block; color:var(--muted); margin-bottom:5px;">Default Home URL</label>
+                <input type="text" name="home_url" value="<%= user.home_url %>" style="width:100%; max-width:400px;">
+            </div>
+
+            <div style="margin-bottom:20px; display:flex; gap:10px; align-items:center;">
+                <input type="checkbox" name="mailing_list" id="ml" <%= user.mailing_list ? 'checked' : '' %> style="width:auto; margin:0;">
+                <label for="ml" style="color:var(--text);">Subscribe to Mailing List</label>
+            </div>
+
+            <button type="submit" class="btn-primary">Save Changes</button>
+        </form>
+      </div>
+
+      <div class="tile" style="border-color:var(--danger);">
+        <h3 style="color:var(--danger);">Danger Zone</h3>
+        <p class="muted">Once you delete your account, there is no going back. Please be certain.</p>
+        
+        <form action="/account/delete" method="POST" onsubmit="return confirm('Are you absolutely sure? This will disable your account immediately.');">
+            <button type="submit" class="btn" style="background:var(--danger); color:white; border:none; margin-top:10px;">Delete Account</button>
+        </form>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

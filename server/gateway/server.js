@@ -1,5 +1,3 @@
-// gateway/server.js — ESM
-// The Central AI Passthrough Gateway (WebSocket Edition + Stats)
 import 'dotenv/config';
 import express from 'express';
 import morgan from 'morgan';
@@ -7,220 +5,220 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import http from 'http';
 import { WebSocketServer } from 'ws';
-import db from '../db.js'; // Shared DB
+import db from '../db.js';
 
-const {
-  PORT = 8787,
-  TRUST_PROXY = 'true'
-} = process.env;
+const { PORT = 8787, TRUST_PROXY = 'true' } = process.env;
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-// 1. Essential Middleware
+// 1. ess middleware
 app.set('trust proxy', TRUST_PROXY === 'true');
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('tiny'));
-app.use(cors());
+app.use(cors({ origin: '*' })); // global cors
 
-// 2. Global Rate Limiter
-const limiter = rateLimit({
+// 2. global rate limit
+app.use(rateLimit({
   windowMs: 60000,
-  max: 100,
+  max: 250, // TODO: play with this number some more to find a perfect limit
   standardHeaders: true,
   legacyHeaders: false,
-});
-app.use(limiter);
+}));
 
 // --- TUNNEL STATE MANAGEMENT ---
-// Map<ClientSlug, WebSocket>
+// key: "username/slug" example, "LachlanM05/webgpu" -> value: WebSocket
 const activeTunnels = new Map();
-// Map<RequestId, { res, startTime, model }>
 const pendingRequests = new Map();
 
+// helpy to ensure cors on errors
+const sendError = (res, status, message) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.status(status).json({ error: message });
+};
 
-// 3. WebSocket Handler (Hardware Connections)
+// 3. websocket handler
 wss.on('connection', (ws, req) => {
   try {
-    // Parse params: ws://api.lachlanm05.com/tunnel?slug=test&key=sk-123
     const url = new URL(req.url, `http://${req.headers.host}`);
+    
+    // 1. READ EXPLICIT PARAMS
+    const username = url.searchParams.get('username');
     const slug = url.searchParams.get('slug');
     const apiKey = url.searchParams.get('key');
 
-    // Authenticate the Hardware
-    const client = db.prepare('SELECT * FROM clients WHERE client_slug = ? AND api_key = ?').get(slug, apiKey);
+    if (!username || !slug || !apiKey) {
+        console.log(`[WS] 🛑 Reject: Missing connection params`);
+        ws.close(1008, 'Missing Params');
+        return;
+    }
+
+    // 2. VERIFY EXACT MATCH
+    const client = db.prepare(`
+        SELECT clients.id, users.username 
+        FROM clients 
+        JOIN users ON clients.user_id = users.id 
+        WHERE users.username = ? AND clients.client_slug = ? AND clients.api_key = ?
+    `).get(username, slug, apiKey);
 
     if (!client) {
-      console.log(`[WS] Connection rejected: Invalid credentials for slug ${slug}`);
+      console.log(`[WS] 🛑 Reject: Invalid Creds for ${username}/${slug}`);
       ws.close(1008, 'Invalid Credentials');
       return;
     }
 
-    // --- START SESSION LOGGING ---
+    // 3. REGISTER TUNNEL (Explicit ID)
+    const tunnelId = `${username}/${slug}`; // "LachlanM05/webgpu"
+    
+    // close existing connection if any
+    if (activeTunnels.has(tunnelId)) {
+        console.log(`[WS] ⚠️ Overwriting existing session for ${tunnelId}`);
+        activeTunnels.get(tunnelId).terminate();
+    }
+
+    console.log(`[WS] 🔌 Hardware Online: ${tunnelId}`);
+    activeTunnels.set(tunnelId, ws);
+    
+    // log session
     const sessionStart = new Date().toISOString();
     let sessionId = null;
     try {
-      const result = db.prepare('INSERT INTO connection_logs (client_id, connected_at) VALUES (?, ?)').run(client.id, sessionStart);
-      sessionId = result.lastInsertRowid;
+        const result = db.prepare('INSERT INTO connection_logs (client_id, connected_at) VALUES (?, ?)').run(client.id, sessionStart);
+        sessionId = result.lastInsertRowid;
     } catch (e) { console.error('Failed to log session start', e); }
 
-    // Success - Register Tunnel
-    console.log(`[WS] 🔌 Hardware Online: ${slug}`);
-    activeTunnels.set(slug, ws);
-
-    // Handle Disconnect
     ws.on('close', () => {
-      console.log(`[WS] ❌ Hardware Offline: ${slug}`);
-      activeTunnels.delete(slug);
-
-      // --- END SESSION LOGGING ---
-      if (sessionId) {
-        try {
-          const now = new Date().toISOString();
-          db.prepare('UPDATE connection_logs SET disconnected_at = ? WHERE id = ?').run(now, sessionId);
-        } catch (e) { console.error('Failed to log session end', e); }
-      }
-    });
-
-    // Handle Responses from Hardware
-    ws.on('message', (message) => {
-      try {
-        const response = JSON.parse(message);
-        const { requestId, status, data } = response;
-
-        // Find the HTTP request waiting for this answer
-        const pending = pendingRequests.get(requestId);
-        if (pending) {
-          
-          // --- STATS LOGGING ---
-          try {
-            const duration = Date.now() - pending.startTime;
-            const modelUsed = pending.model || 'unknown';
-            db.prepare('INSERT INTO request_logs (client_id, model, duration_ms) VALUES (?, ?, ?)')
-              .run(client.id, modelUsed, duration);
-          } catch (e) { console.error('Stats Log Error:', e); }
-
-          // Send the answer back to the internet user
-          pending.res.status(status || 200).json(data);
-          pendingRequests.delete(requestId);
+        console.log(`[WS] ❌ Hardware Offline: ${tunnelId}`);
+        activeTunnels.delete(tunnelId);
+        
+        if (sessionId) {
+            try {
+                db.prepare('UPDATE connection_logs SET disconnected_at = ? WHERE id = ?').run(new Date().toISOString(), sessionId);
+            } catch (e) { console.error('Failed to log session end', e); }
         }
-      } catch (e) {
-        console.error('[WS] Error processing message:', e);
-      }
     });
 
-  } catch (e) {
-    console.error('[WS] Connection error:', e);
-    ws.close();
-  }
+    ws.on('message', (message) => {
+        try {
+            const response = JSON.parse(message);
+            const pending = pendingRequests.get(response.requestId);
+            if (pending) {
+                // log stats
+                try {
+                    db.prepare('INSERT INTO request_logs (client_id, model, duration_ms) VALUES (?, ?, ?)')
+                    .run(client.id, pending.model || 'unknown', Date.now() - pending.startTime);
+                } catch (e) { console.error('Stats Log Error:', e); }
+
+                pending.res.status(response.status || 200).json(response.data);
+                pendingRequests.delete(response.requestId);
+            }
+        } catch (e) { console.error('[WS] Msg Error:', e); }
+    });
+
+  } catch (e) { ws.close(); }
 });
 
-
-// 4. HTTP Security Middleware (The Guard)
+// 4. HTTP security middleware
 async function verifyAccess(req, res, next) {
+  // allow preflight
+  if (req.method === 'OPTIONS') return next();
+
   const { username, clientid } = req.params;
+  const incomingIP = req.ip || req.connection.remoteAddress;
 
-  // A. Find User
+  console.log(`[HTTP] Request from ${incomingIP} -> /users/${username}/${clientid}`);
+
+  // A. check user
   const user = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-
-  // B. Find Client
-  const client = db.prepare('SELECT id, api_key, whitelisted_ips, catch_mode FROM clients WHERE user_id = ? AND client_slug = ?').get(user.id, clientid);
-  if (!client) return res.status(404).json({ error: 'Client ID not found' });
-
-  // D. API Key Check (Must be valid first)
-  const authHeader = req.headers['authorization'] || '';
-  const token = authHeader.replace('Bearer ', '').trim();
-
-  if (token !== client.api_key) {
-    return res.status(401).json({ error: 'Invalid API Key' });
+  if (!user) {
+      console.warn(`[HTTP] User not found: ${username}`);
+      return sendError(res, 404, 'User not found');
   }
 
-  // --- NEW: IP CAPTURE LOGIC ---
-  const incomingIP = req.ip || req.connection.remoteAddress;
-  
-  // 1. Always update the 'last_seen_ip' so the user can see it in Dashboard
+  // B. check client
+  const client = db.prepare('SELECT id, api_key, whitelisted_ips, catch_mode FROM clients WHERE user_id = ? AND client_slug = ?').get(user.id, clientid);
+  if (!client) {
+      console.warn(`[HTTP] Client not found: ${clientid} for user ${username}`);
+      return sendError(res, 404, 'Client Endpoint not found');
+  }
+
+  // C. API key check
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.replace('Bearer ', '').trim();
+  if (token !== client.api_key) {
+      console.warn(`[HTTP] Invalid API Key for ${username}/${clientid}`);
+      return sendError(res, 401, 'Invalid API Key');
+  }
+
+  // D. IP checkzs
   db.prepare('UPDATE clients SET last_seen_ip = ? WHERE id = ?').run(incomingIP, client.id);
 
-  // 2. Check Catch Mode
   if (client.catch_mode === 1) {
-    // Catch Mode is ON: Allow everything, log to console
-    console.log(`[Catch Mode] Allowed IP ${incomingIP} for ${clientid}`);
+    console.log(`[Catch Mode] Allowed ${incomingIP}`);
     return next();
   }
 
-  // C. Normal Whitelist Check
   const allowed = client.whitelisted_ips.split(',').map(ip => ip.trim());
-  const isAllowed = allowed.includes('*') || allowed.includes(incomingIP);
-
-  if (!isAllowed) {
-    console.warn(`[Block] IP ${incomingIP} tried to access ${username}/${clientid}`);
-    res.header('Access-Control-Allow-Origin', '*');
-    return res.status(403).json({ 
-      error: 'Access Denied: IP not whitelisted',
-      detected_ip: incomingIP 
-    });
+  if (!allowed.includes('*') && !allowed.includes(incomingIP)) {
+    console.warn(`[Block] IP ${incomingIP} blocked`);
+    return sendError(res, 403, `Access Denied: IP ${incomingIP} not whitelisted`);
   }
 
   next();
 }
 
-// 5. The Passthrough Handler (HTTP -> WebSocket)
+// 5. passthrough handler
 async function handlePassthrough(req, res) {
-  const { clientid } = req.params;
+  const { username, clientid } = req.params;
+  
+  // A. check tun status
+  const tunnelId = `${username}/${clientid}`;
+  const tunnel = activeTunnels.get(tunnelId);
 
-  // A. Check if Hardware is Online
-  const tunnel = activeTunnels.get(clientid);
-  if (!tunnel || tunnel.readyState !== 1) { // 1 = OPEN
-    return res.status(502).json({ 
-      error: 'Bad Gateway', 
-      message: 'User Hardware is currently offline or disconnected.' 
-    });
+  if (!tunnel || tunnel.readyState !== 1) {
+    console.warn(`[HTTP] Tunnel Offline: ${tunnelId}`);
+    return sendError(res, 502, 'User Hardware is offline.');
   }
 
-  // B. Create Request Package
   const requestId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
   
-  // Extract model name for logging (if present)
-  const modelName = req.body && req.body.model ? req.body.model : null;
+  // --- FIX: FORCE DISABLE STREAMING (disabled streaming due to a few bugs) ---
+  const modifiedBody = req.body || {};
+  if (modifiedBody.stream) {
+      console.log(`[Proxy] ⚠️ Force-disabling stream for request ${requestId}`);
+      modifiedBody.stream = false;
+  }
 
-  // Store the HTTP 'res' object so we can reply later
-  // Added startTime and model for stats logging
   pendingRequests.set(requestId, { 
     res, 
     startTime: Date.now(), 
-    model: modelName 
+    model: modifiedBody.model 
   });
 
-  // C. Send to Hardware
-  const payload = {
+  // B. send to hardware
+  tunnel.send(JSON.stringify({
     requestId,
     method: req.method,
-    path: req.params[0], // The wildcard part (e.g. 'api/generate')
-    body: req.body
-  };
+    path: req.params[0],
+    body: modifiedBody // send the modified body
+  }));
 
-  tunnel.send(JSON.stringify(payload));
-
-  // D. Safety Timeout (UPDATED to 5 Minutes / 300000ms)
+  // C. safety timeout (5min)
   setTimeout(() => {
     if (pendingRequests.has(requestId)) {
-      pendingRequests.get(requestId).res.status(504).json({ error: 'Gateway Timeout: Hardware did not respond in time.' });
+      console.log(`[Proxy] ⏱️ Timeout for ${requestId}`);
+      pendingRequests.get(requestId).res.status(504).json({ error: 'Gateway Timeout: GPU took too long.' });
       pendingRequests.delete(requestId);
     }
   }, 300000);
 }
 
-// 6. Routes
-// Matches: /users/lachlan/test/api/generate
+// 6. routes
 app.all('/users/:username/:clientid/*', verifyAccess, handlePassthrough);
 
-// 7. Start Server
-const listener = server.listen(PORT, () => {
+// 7. start
+server.listen(PORT, () => {
   console.log(`Gateway listening on port ${PORT}`);
-  console.log(`WebSocket endpoint ready at ws://localhost:${PORT}/tunnel`);
 });
-
-// FORCE Socket Timeout to 5 minutes (prevents 'NetworkError' on long gens)
-listener.setTimeout(300000);
+server.setTimeout(300000);

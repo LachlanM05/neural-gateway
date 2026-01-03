@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Register // NeuralGateway</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="splash-container">
+    <div class="splash-card">
+      <div class="kicker">New Account</div>
+      <h1>Join the Network.</h1>
+      <p class="muted">Create an identity to access the Neural Gateway.</p>
+      
+      <form action="/register" method="POST" style="margin-top: 24px;">
+        <input type="text" name="username" placeholder="Username" required autocomplete="off">
+        <input type="email" name="email" placeholder="Email Address" required autocomplete="off">
+        <input type="password" name="password" placeholder="Password" required>
+        
+        <div style="margin-top: 15px; display:flex; gap:10px; align-items:center;">
+             <input type="checkbox" name="mailing_list" id="ml" style="width:auto; margin:0;">
+             <label for="ml" style="font-size:0.9rem; color:var(--muted); cursor:pointer;">Join mailing list (Updates & Features)</label>
+        </div>
+
+        <a>By registering, you agree to follow the <a href="https://lachlanm05.com/ai/pptos">Privacy Policy and Terms of Service</a></a>
+        
+        <button type="submit" class="btn-primary" style="width: 100%; margin-top: 15px;">Create Account</button>
+      </form>
+
+      <div style="margin-top: 20px; font-size: 0.8rem;">
+        <span class="muted">Already have an account?</span> 
+        <a href="/login">Login here</a>
+        <br>
+        <a href="/" class="muted" style="display:inline-block; margin-top:10px;">← Back to Home</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

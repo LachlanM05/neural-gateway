@@ -7,5 +7,5 @@ server/node_modules/
 
 *.db 
 
-server/dashboard/admin_users.ejs
-server/dashboard/admin.ejs
+server/dashboard/views/admin_users.ejs
+server/dashboard/views/admin.ejs

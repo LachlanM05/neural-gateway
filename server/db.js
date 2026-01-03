@@ -1,29 +1,19 @@
+// server/db.js
 import Database from 'better-sqlite3';
-import path from 'node:path';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const dbPath = path.resolve('database.sqlite');
+// 1. calc abs path to server folder
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 2. force db to always be at server/database.db
+const dbPath = path.join(__dirname, 'database.db');
+
+// 3. open con
 const db = new Database(dbPath);
 
-// init tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    email TEXT,
-    password_hash TEXT,
-    home_url TEXT,
-    verify_token TEXT,
-    verified INTEGER DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS clients (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    client_slug TEXT,
-    api_key TEXT,
-    whitelisted_ips TEXT,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  );
-`);
+// enable write-ahead loggin
+db.pragma('journal_mode = WAL');
 
 export default db;
