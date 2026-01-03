@@ -9,6 +9,10 @@ Neural Gateway is a two-part system for routing AI requests from the internet to
 - **Dashboard (server/dashboard)**: An Express UI for user auth, client management, and basic stats.
 - **Electron client (client/electron-app)**: Connects local hardware to the gateway and forwards requests to a local Ollama instance.
 
+Disclaimer:
+This project is not affiliated with, endorsed by, or supported by any AI platform.
+It is a general-purpose, free, open-source tool that users may choose to configure with services they already use.
+
 ## Architecture
 
 1. Internet client sends HTTP requests to the Gateway.
