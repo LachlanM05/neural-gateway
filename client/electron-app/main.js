@@ -1,11 +1,11 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, shell } = require('electron');
 const path = require('path');
 const WebSocket = require('ws');
 const axios = require('axios');
 const si = require('systeminformation');
 const AutoLaunch = require('auto-launch');
 
-// --- CONFIG ---
+// conf
 const DASHBOARD_URL = 'https://ai.lachlanm05.com';     
 const GATEWAY_WS = 'wss://api.lachlanm05.com/tunnel';  
 const LOCAL_OLLAMA = 'http://127.0.0.1:11434';
@@ -41,12 +41,18 @@ function createWindow() {
         mainWindow.show();
     });
 
-    // Minimize to Tray instead of closing
+    // min to tray instead of closing
     mainWindow.on('close', (event) => {
         if (!app.isQuiting) {
             event.preventDefault();
             mainWindow.hide();
         }
+    });
+
+    // open external links in default browser
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        shell.openExternal(url);
+        return { action: 'deny' };
     });
 }
 
@@ -65,7 +71,7 @@ function createTray() {
         tray.setToolTip('Lachlan AI Client');
         tray.setContextMenu(contextMenu);
 
-        // Left-Click to Open
+        // left click to open gui
         tray.on('click', () => {
             if (mainWindow.isVisible()) {
                 mainWindow.hide();
@@ -75,7 +81,7 @@ function createTray() {
             }
         });
 
-        // Double click backup
+        // double click
         tray.on('double-click', () => mainWindow.show());
 
     } catch (e) {
@@ -83,7 +89,7 @@ function createTray() {
     }
 }
 
-// --- DIAGNOSTICS ---
+// diagnostics
 async function checkOllama() {
     try {
         await axios.get(LOCAL_OLLAMA);
@@ -101,14 +107,14 @@ function sendToUI(msg, type='info') {
     }
 }
 
-// --- TUNNEL LOGIC ---
+// tun logic
 async function connectTunnel(username, apiKey, slug) {
     if (isConnected) return;
     
-    // Reset manual flag so we can reconnect
+    // reset manual flag
     isManualDisconnect = false;
 
-    // 1. Check Ollama First
+    // 1. check local ollama
     const ollamaUp = await checkOllama();
     if (!ollamaUp) {
         sendToUI('Error: Local Ollama is OFFLINE (Check Port 11434)');
@@ -117,7 +123,7 @@ async function connectTunnel(username, apiKey, slug) {
 
     sendToUI(`Connecting to Gateway...`);
     
-    // UPDATED: Pass username in URL query
+    // pass username in url query
     const wsUrl = `${GATEWAY_WS}?username=${username}&slug=${slug}&key=${apiKey}`;
     socket = new WebSocket(wsUrl);
     
@@ -126,7 +132,7 @@ async function connectTunnel(username, apiKey, slug) {
         sendToUI('Connected (Tunnel Active)');
         if (config.sendStats) sendSystemStats(apiKey, slug);
 
-        // Heartbeat to keep connection alive
+        // heartbeat to keep con alive
         clearInterval(heartbeatInterval);
         heartbeatInterval = setInterval(() => {
             if (socket.readyState === WebSocket.OPEN) {
@@ -140,7 +146,7 @@ async function connectTunnel(username, apiKey, slug) {
             const req = JSON.parse(data);
             sendToUI(`Processing: ${req.method} ...`);
             
-            // Forward to Ollama
+            // forward to ollama
             const response = await axios({
                 method: req.method,
                 url: `${LOCAL_OLLAMA}/${req.path}`,
@@ -163,7 +169,7 @@ async function connectTunnel(username, apiKey, slug) {
 
         } catch (e) {
             sendToUI(`Ollama Error: ${e.message}`);
-            // Tell Gateway we failed
+            // tell gateway we failed
             if (socket.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({
                     requestId: JSON.parse(data).requestId,
@@ -182,7 +188,7 @@ async function connectTunnel(username, apiKey, slug) {
         if (code === 1008) msg = 'Error: Invalid Credentials';
         sendToUI(msg);
 
-        // ONLY Retry if it wasn't a manual disconnect AND wasn't an auth error
+        // only retry if it wasn't a manual discon and not an auth issue
         if (!isManualDisconnect && code !== 1008) {
             sendToUI('Connection lost. Retrying in 5s...');
             setTimeout(() => connectTunnel(username, apiKey, slug), 5000);
@@ -212,10 +218,10 @@ async function sendSystemStats(apiKey, slug) {
     } catch(e) { console.log('Stats failed', e.message); }
 }
 
-// --- IPC HANDLERS ---
+// ipc handlers
 ipcMain.handle('toggle-connection', (event, { username, apiKey, slug }) => {
     if (isConnected) {
-        // MANUAL DISCONNECT
+        // manual discon
         isManualDisconnect = true;
         if(socket) socket.close();
         isConnected = false;
@@ -234,13 +240,13 @@ ipcMain.handle('toggle-stats', (event, enabled) => {
     config.sendStats = enabled; 
 });
 
-// --- APP LIFECYCLE ---
+// app lifecycle
 app.whenReady().then(() => {
     createWindow();
     createTray();
 });
 
-// Single Instance Lock
+// single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();

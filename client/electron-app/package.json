@@ -1,7 +1,7 @@
 {
-  "name": "lachlan-ai-client",
-  "version": "1.0.0",
-  "description": "Neural Passthrough Client",
+  "name": "neural-gateway-lachlanm05",
+  "version": "1.0.4",
+  "description": "Neural Gateway Node Client",
   "main": "main.js",
   "author": "LachlanM05",
   "scripts": {
@@ -10,7 +10,7 @@
   },
   "build": {
     "appId": "com.lachlanm05.ai",
-    "productName": "LachlanAI Node",
+    "productName": "Neural Gateway",
     "win": {
       "target": [
         "nsis"

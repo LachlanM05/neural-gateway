@@ -60,9 +60,50 @@
         .toggle-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(119, 170, 255, 0.1); }
 
         .footer { position: fixed; bottom: 10px; width: 100%; text-align: center; font-size: 0.7rem; color: var(--muted); left: 0;}
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+            backdrop-filter: blur(4px);
+        }
+        .modal {
+            background: var(--card); border: 1px solid var(--accent);
+            padding: 25px; border-radius: 14px; max-width: 85%;
+            text-align: center; box-shadow: 0 0 30px rgba(0,0,0,0.6);
+        }
+        .modal h3 { color: var(--accent); margin-top: 0; }
+        .modal p { color: var(--text); line-height: 1.5; margin-bottom: 15px; }
+        .modal a { color: var(--accent); text-decoration: none; }
+        .hidden { display: none !important; }
+
+        .social-container {
+            position: fixed; bottom: 12px; right: 12px;
+            display: flex; gap: 10px; z-index: 50;
+        }
+        .social-icon {
+            width: 28px; height: 28px;
+            opacity: 0.6; transition: 0.2s;
+            cursor: pointer; object-fit: contain;
+        }
+        .social-icon:hover { opacity: 1; transform: scale(1.1); }
     </style>
 </head>
 <body>
+
+    <div id="welcomeModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h3>Welcome to Neural Gateway</h3>
+            <p>
+                Thanks for downloading!<br><br>
+                If you need help setting up, please join our <a href="https://discord.gg/4ARq2cBtSy" target="_blank">Discord</a> or visit <a href="https://ai.lachlanm05.com" target="_blank">the website</a>.
+            </p>
+            <p style="font-size: 0.75rem; color: var(--muted); margin-top: 20px;">
+                If you enjoy this free tool, consider supporting development on Ko-fi.
+            </p>
+            <button id="closeWelcomeBtn" class="btn-main" style="width: auto; padding: 8px 24px; margin-top: 10px;">Get Started</button>
+        </div>
+    </div>
 
     <div class="header">
         <div class="avatar" style="background-image: url('https://lachlanm05.com/assets/84118320.png'); background-size: cover;"></div>
@@ -78,22 +119,22 @@
 
         <div id="loginForm">
             <div style="margin-bottom: 10px;">
-                <input type="text" id="usernameInput" placeholder="Username (e.g. LachlanM05)" spellcheck="false" style="width: 100%; padding: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px;">
+                <input type="text" id="usernameInput" placeholder="Username (e.g. LachlanM05)" spellcheck="false">
             </div>
 
             <div style="margin-bottom: 10px;">
-                <input type="text" id="slugInput" placeholder="Client Slug (e.g. home-pc)" spellcheck="false" style="width: 100%; padding: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px;">
+                <input type="text" id="slugInput" placeholder="Client Slug (e.g. home-pc)" spellcheck="false">
             </div>
 
             <div style="margin-bottom: 15px;">
-                <input type="password" id="keyInput" placeholder="API Key (sk-...)" spellcheck="false" style="width: 100%; padding: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px;">
+                <input type="password" id="keyInput" placeholder="API Key (sk-...)" spellcheck="false">
             </div>
 
             <button id="connectBtn" class="btn-main">Connect Node</button>
         </div>
         
         <div id="connectedControls" style="display: none;">
-            <p style="text-align:center; margin-bottom:15px; font-size: 0.9rem; opacity: 0.8;">Tunnel is active.<br>Do not close this window.</p>
+            <p style="text-align:center; margin-bottom:15px; font-size: 0.9rem; opacity: 0.8;">Tunnel is active.<br>Do not close the app. (You can minimize)</p>
             <button id="disconnectBtn" class="btn-disconnect">Disconnect</button>
         </div>
     </div>
@@ -108,12 +149,21 @@
             <button id="statsBtn" class="toggle-btn active">ON</button>
         </div>
         <p style="font-size: 0.65rem; margin-top: 5px; opacity: 0.6;">
-            Stats include: CPU Model, RAM Amount, OS Version, & Uptime. No personal data.
+            Stats include: CPU Model, RAM Amount, OS Version, & Uptime. No model responses.
         </p>
     </div>
 
     <div class="footer">
-        v1.0.1 • Secure Endpoint
+        v1.0.4 • Secure Endpoint
+    </div>
+
+    <div class="social-container">
+        <a href="https://discord.gg/4ARq2cBtSy" target="_blank">
+            <img src="https://lachlanm05.com/ai/electron-assets/discord.png" class="social-icon" alt="Discord">
+        </a>
+        <a href="https://ko-fi.com/lachlanm05" target="_blank">
+            <img src="https://lachlanm05.com/ai/electron-assets/kofi.png" class="social-icon" alt="Ko-fi">
+        </a>
     </div>
 
     <script src="renderer.js"></script>
