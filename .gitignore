@@ -5,5 +5,5 @@ server/node_modules/
 .env
 .DS_Store
 *.db 
-server/
-server/dashboard/views/index.ejs
+server/dashboard/admin_users.ejs
+server/dashboard/admin.ejs
