@@ -1,16 +1,23 @@
 {
   "name": "neural-gateway-lachlanm05",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Neural Gateway Node Client",
   "main": "main.js",
   "author": "LachlanM05",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder"
+    "clean": "rimraf dist",
+    "dist": "npm run clean && electron-builder"
   },
   "build": {
     "appId": "com.lachlanm05.ai",
     "productName": "Neural Gateway",
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://lachlanm05.com/ai/updater/"
+      }
+    ],
     "win": {
       "target": [
         "nsis"
@@ -27,11 +34,13 @@
   "dependencies": {
     "auto-launch": "^5.0.5",
     "axios": "^1.6.0",
+    "electron-updater": "^6.6.2",
     "systeminformation": "^5.21.0",
     "ws": "^8.14.0"
   },
   "devDependencies": {
     "electron": "^26.0.0",
-    "electron-builder": "^24.6.0"
+    "electron-builder": "^24.6.0",
+    "rimraf": "^5.0.10"
   }
 }

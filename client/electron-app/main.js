@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, shell, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const WebSocket = require('ws');
 const axios = require('axios');
@@ -9,6 +10,7 @@ const AutoLaunch = require('auto-launch');
 const DASHBOARD_URL = 'https://ai.lachlanm05.com';     
 const GATEWAY_WS = 'wss://api.lachlanm05.com/tunnel';  
 const LOCAL_OLLAMA = 'http://127.0.0.1:11434';
+const UPDATE_URL = 'https://lachlanm05.com/ai/updater/';
 
 let mainWindow;
 let tray;
@@ -19,6 +21,54 @@ let heartbeatInterval;
 let config = { sendStats: true, openOnStartup: false };
 
 const autoLauncher = new AutoLaunch({ name: 'Neural Gateway', path: app.getPath('exe') });
+
+autoUpdater.setFeedURL({
+    provider: 'generic',
+    url: UPDATE_URL
+});
+
+autoUpdater.autoDownload = false;
+
+function setupUpdater() {
+    autoUpdater.on('checking-for-update', () => sendToUI('Checking for updates...'));
+    
+    autoUpdater.on('update-available', (info) => {
+        sendToUI(`Update available: v${info.version}`);
+        // prompt user or just download
+        dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Update Available',
+            message: `A new version (v${info.version}) is available. Download now?`,
+            buttons: ['Yes', 'No']
+        }).then((result) => {
+            if (result.response === 0) {
+                sendToUI('Downloading update...');
+                autoUpdater.downloadUpdate();
+            }
+        });
+    });
+
+    autoUpdater.on('update-not-available', () => sendToUI('Client is up to date.'));
+
+    autoUpdater.on('error', (err) => {
+        sendToUI(`Update Error: ${err.message}`, 'error');
+    });
+
+    autoUpdater.on('update-downloaded', () => {
+        sendToUI('Update downloaded. Restarting...');
+        // wait a moment then quit and install
+        setTimeout(() => {
+            autoUpdater.quitAndInstall();
+        }, 2000);
+    });
+
+    // check for updates shortly after launch
+    setTimeout(() => {
+        if (process.env.NODE_ENV !== 'development') {
+            autoUpdater.checkForUpdates();
+        }
+    }, 5000);
+}
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -39,6 +89,7 @@ function createWindow() {
 
     mainWindow.once('ready-to-show', () => {
         mainWindow.show();
+        if (process.env.NODE_ENV !== 'development') setupUpdater();
     });
 
     // min to tray instead of closing
@@ -64,6 +115,7 @@ function createTray() {
         
         const contextMenu = Menu.buildFromTemplate([
             { label: 'Open Interface', click: () => mainWindow.show() },
+            { label: 'Check for Updates', click: () => autoUpdater.checkForUpdates() },
             { type: 'separator' },
             { label: 'Quit Neural Gateway', click: () => { app.isQuiting = true; app.quit(); } }
         ]);
@@ -200,21 +252,61 @@ async function connectTunnel(username, apiKey, slug) {
     });
 }
 
+// --- HARDWARE INFO LOGIC ---
 async function sendSystemStats(apiKey, slug) {
     try {
+        // Fetch specific data points
         const cpu = await si.cpu();
         const mem = await si.mem();
+        const memLayout = await si.memLayout();
+        const graphics = await si.graphics();
+        const diskLayout = await si.diskLayout();
         const os = await si.osInfo();
+
+        // 1. Process RAM: "32GB DDR4@2400MT/s"
+        const totalRamGB = Math.round(mem.total / 1024 / 1024 / 1024);
+        let ramString = `${totalRamGB}GB`;
         
+        // Try to get detailed stick info from the first bank found
+        if (memLayout && memLayout.length > 0) {
+            const stick = memLayout[0];
+            if (stick.type) ramString += ` ${stick.type}`;
+            if (stick.clockSpeed) ramString += `@${stick.clockSpeed}MT/s`;
+        }
+
+        // 2. Process GPU: Get all controllers (Integrated + Dedicated)
+        // Filter out empty models and join them
+        const gpuString = graphics.controllers
+            .map(g => g.model)
+            .filter(model => model && model.length > 0)
+            .join(' + ');
+
+        // 3. Process Storage: Find main drive type (SSD/HDD + Interface)
+        // We look at all physical disks. 
+        const driveTypes = diskLayout.map(d => {
+            // e.g. "NVMe" or "SATA"
+            const interfaceType = d.interfaceType || ''; 
+            // e.g. "SSD" or "HDD" - systeminformation usually provides this in 'type'
+            const type = d.type || 'Disk'; 
+            return `${interfaceType} ${type}`.trim();
+        }).join(', ');
+
+        const hardwareInfoObj = {
+            cpu: `${cpu.manufacturer} ${cpu.brand}`,
+            ram: ramString,
+            gpu: gpuString || 'Unknown GPU',
+            storage: driveTypes || 'Unknown Storage',
+            os: `${os.distro} ${os.release}`
+        };
+
+        // note: json stringing due to only using one specific column in the db schema, so for now it'll be ugly,
+        // but it's just usage stats, anyway. in future, i'll expand the db schema.
         await axios.post(`${DASHBOARD_URL}/api/report-stats`, {
             apiKey, slug, 
-            specs: { 
-                cpu: `${cpu.manufacturer} ${cpu.brand}`, 
-                ram: Math.round(mem.total/1024/1024/1024) + 'GB', 
-                os: os.distro 
-            }, 
+            specs: hardwareInfoObj, // pass as object, server logic should handle it
             uptime: process.uptime()
         });
+
     } catch(e) { console.log('Stats failed', e.message); }
 }
 
