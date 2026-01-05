@@ -5,7 +5,8 @@ server/node_modules/
 .env
 .DS_Store
 
-*.db 
+
 
 server/dashboard/views/admin_users.ejs
 server/dashboard/views/admin.ejs
+admin/
