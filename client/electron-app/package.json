@@ -1,9 +1,10 @@
 {
   "name": "neural-gateway-lachlanm05",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Neural Gateway Node Client",
   "main": "main.js",
-  "author": "LachlanM05",
+  "author": "LachlanM05 <lachlan@lachlanm05.com>",
+  "homepage": "https://ai.lachlanm05.com",
   "scripts": {
     "start": "electron .",
     "clean": "rimraf dist",
@@ -19,9 +20,7 @@
       }
     ],
     "win": {
-      "target": [
-        "nsis"
-      ],
+      "target": ["nsis"],
       "icon": "logo.ico"
     },
     "nsis": {
@@ -29,6 +28,14 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "logo.icns" 
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "logo.png"
     }
   },
   "dependencies": {

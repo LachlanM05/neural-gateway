@@ -32,7 +32,7 @@
       <div class="tile half">
         <span class="kicker">Network Node</span>
         <h3>Hardware Link</h3>
-        <p class="muted">Where should we look for your local AI?</p>
+        <p class="muted">Where should we look for your local AI? If unsure, leave empty.</p>
         <form action="/update-url" method="POST" style="display:flex; gap:10px; margin-top:15px;">
           <input type="text" name="home_url" value="<%= user.home_url || '' %>" placeholder="e.g. http://127.0.0.1:11434" style="margin-bottom:0;">
           <button type="submit" class="btn">Save</button>

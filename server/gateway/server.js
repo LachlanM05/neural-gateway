@@ -114,6 +114,18 @@ wss.on('connection', async (ws, req) => {
     ws.on('message', async (message) => {
         try {
             const response = JSON.parse(message);
+            
+            // Intercept stats/online status pings from the client
+            if (response.type === 'stats') {
+                const incomingIP = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
+                await db.query(
+                    'UPDATE clients SET hardware_info = $1, app_uptime = $2, last_seen_ip = $3 WHERE id = $4',
+                    [JSON.stringify(response.specs), response.uptime, incomingIP, client.id]
+                );
+                return; // Stop processing further for stats messages
+            }
+
+            // Normal model response processing
             const pending = pendingRequests.get(response.requestId);
             if (pending) {
                 db.query('INSERT INTO request_logs (client_id, model, duration_ms) VALUES ($1, $2, $3)', 
