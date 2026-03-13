@@ -93,9 +93,11 @@
                    <% } %>
                    <br>
                    <% if(c.hardware_info) { 
-                      try { const hw = JSON.parse(c.hardware_info); %>
+                      try { 
+                          const hw = typeof c.hardware_info === 'string' ? JSON.parse(c.hardware_info) : c.hardware_info;
+                   %>
                         <%= hw.cpu %> • <%= hw.ram %>
-                   <% } catch(e){} } %>
+                   <% } catch(e){ console.error(e); } } %>
                 </div>
               </td>
 

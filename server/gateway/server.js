@@ -100,14 +100,20 @@ wss.on('connection', async (ws, req) => {
         sessionId = logRes.rows[0].id;
     } catch (e) { console.error('Failed to log session start', e); }
 
+    // Replace the ws.on('close') event in server/gateway/server.js with this:
     ws.on('close', async () => {
-        console.log(`[WS] ❌ Hardware Offline: ${tunnelId}`);
+        console.log('[WS] ❌ Hardware Offline: ' + tunnelId);
         activeTunnels.delete(tunnelId);
         
-        if (sessionId) {
-            try {
+        try {
+            // Reset uptime to 0 so the dashboard shows Offline
+            await db.query('UPDATE clients SET app_uptime = 0 WHERE id = $1', [client.id]);
+            
+            if (sessionId) {
                 await db.query('UPDATE connection_logs SET disconnected_at = NOW() WHERE id = $1', [sessionId]);
-            } catch (e) { console.error('Failed to log session end', e); }
+            }
+        } catch (e) { 
+            console.error('Failed to log session end', e); 
         }
     });
 
