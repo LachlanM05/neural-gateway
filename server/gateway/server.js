@@ -124,9 +124,13 @@ wss.on('connection', async (ws, req) => {
             // Intercept stats/online status pings from the client
             if (response.type === 'stats') {
                 const incomingIP = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
+                
+                // Ensure uptime is an integer to prevent Postgres int32 conversion errors
+                const safeUptime = Math.round(Number(response.uptime)) || 0;
+
                 await db.query(
                     'UPDATE clients SET hardware_info = $1, app_uptime = $2, last_seen_ip = $3 WHERE id = $4',
-                    [JSON.stringify(response.specs), response.uptime, incomingIP, client.id]
+                    [JSON.stringify(response.specs), safeUptime, incomingIP, client.id]
                 );
                 return; // Stop processing further for stats messages
             }
