@@ -13,3 +13,4 @@ admin/
 
 client/cli-app/node_modules
 client/cli-app/dist
+client/cli-app/package-lock.json
