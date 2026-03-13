@@ -1,6 +1,6 @@
 {
   "name": "neural-gateway-cli",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Neural Gateway CLI Client",
   "main": "cli.js",
   "bin": {

@@ -25,6 +25,7 @@ let config = {
 let socket;
 let isConnected = false;
 let heartbeatInterval;
+let cachedSpecs = null;
 
 // cli args
 const args = process.argv.slice(2);
@@ -114,62 +115,53 @@ async function loadOrGenerateConfig() {
 }
 
 // hwstats
-async function sendSystemStats() {
-    if (optOutStats) {
-        log('Statistics collection skipped (User Opt-out)', 'INFO');
-        return;
-    }
-
+async function sendSystemStats(socket) {
     try {
-        const cpu = await si.cpu();
-        const mem = await si.mem();
-        const memLayout = await si.memLayout();
-        const graphics = await si.graphics();
-        const diskLayout = await si.diskLayout();
-        const os = await si.osInfo();
+        if (!cachedSpecs) {
+            const cpu = await si.cpu();
+            const mem = await si.mem();
+            const memLayout = await si.memLayout();
+            const graphics = await si.graphics();
+            const diskLayout = await si.diskLayout();
+            const os = await si.osInfo();
 
-        // RAM formatting
-        const totalRamGB = Math.round(mem.total / 1024 / 1024 / 1024);
-        let ramString = `${totalRamGB}GB`;
-        if (memLayout && memLayout.length > 0) {
-            const stick = memLayout[0];
-            if (stick.type) ramString += ` ${stick.type}`;
-            if (stick.clockSpeed) ramString += `@${stick.clockSpeed}MT/s`;
+            const totalRamGB = Math.round(mem.total / 1024 / 1024 / 1024);
+            let ramString = totalRamGB + 'GB';
+            
+            if (memLayout && memLayout.length > 0) {
+                const stick = memLayout[0];
+                if (stick.type) ramString += ' ' + stick.type;
+                if (stick.clockSpeed) ramString += '@' + stick.clockSpeed + 'MT/s';
+            }
+
+            const gpuString = graphics.controllers
+                .map(g => g.model)
+                .filter(model => model && model.length > 0)
+                .join(' + ');
+
+            const driveTypes = diskLayout.map(d => {
+                const interfaceType = d.interfaceType || ''; 
+                const type = d.type || 'Disk'; 
+                return (interfaceType + ' ' + type).trim();
+            }).join(', ');
+
+            cachedSpecs = {
+                cpu: cpu.manufacturer + ' ' + cpu.brand,
+                ram: ramString,
+                gpu: gpuString || 'Unknown GPU',
+                storage: driveTypes || 'Unknown Storage',
+                os: os.distro + ' ' + os.release
+            };
         }
 
-        // GPU formatting
-        const gpuString = graphics.controllers
-            .map(g => g.model)
-            .filter(model => model && model.length > 0)
-            .join(' + ');
-
-        // disk formatting
-        const driveTypes = diskLayout.map(d => {
-            const interfaceType = d.interfaceType || '';
-            const type = d.type || 'Disk';
-            return `${interfaceType} ${type}`.trim();
-        }).join(', ');
-
-        const hardwareInfoObj = {
-            cpu: `[CLI] ${cpu.manufacturer} ${cpu.brand}`, // adds cli prefix for info
-            ram: ramString,
-            gpu: gpuString || 'Unknown GPU',
-            storage: driveTypes || 'Unknown Storage',
-            os: `${os.distro} ${os.release} (CLI)`
-        };
-
-        await axios.post(`${DASHBOARD_URL}/api/report-stats`, {
-            apiKey: config.apiKey,
-            slug: config.slug,
-            specs: hardwareInfoObj,
-            uptime: process.uptime()
-        });
-
-        log('Hardware stats sent to dashboard.', 'INFO');
-
-    } catch (e) {
-        log(`Failed to send stats: ${e.message}`, 'WARN');
-    }
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'stats',
+                specs: cachedSpecs,
+                uptime: process.uptime()
+            }));
+        }
+    } catch(e) { console.log('Stats failed:', e.message); }
 }
 
 // tun logic
@@ -199,17 +191,17 @@ async function connectTunnel() {
     socket = new WebSocket(wsUrl);
     
     socket.on('open', () => {
-        isConnected = true;
-        log('Connected to Neural Gateway (To opt-out of data collection, run with --optout-data', 'SUCCESS');
+        console.log('Connected (Tunnel Active)');
         
-        // send stats on conn
-        sendSystemStats();
+        // Initial transmission
+        sendSystemStats(socket);
 
-        // keep alive
+        // Heartbeat to keep connection alive and update online status/uptime
         clearInterval(heartbeatInterval);
         heartbeatInterval = setInterval(() => {
             if (socket.readyState === WebSocket.OPEN) {
                 socket.ping(); 
+                sendSystemStats(socket);
             }
         }, 30000);
     });
