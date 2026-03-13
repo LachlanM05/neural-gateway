@@ -10,3 +10,6 @@ server/node_modules/
 server/dashboard/views/admin_users.ejs
 server/dashboard/views/admin.ejs
 admin/
+
+client/cli-app/node_modules
+client/cli-app/dist
