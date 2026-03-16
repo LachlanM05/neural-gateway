@@ -30,6 +30,10 @@ let isStartupEnabled = localStorage.getItem('startup') === 'true';
 // default stats to true if not set
 let isStatsEnabled = localStorage.getItem('stats') !== 'false'; 
 
+window.api.getVersion().then(version => {
+    document.getElementById('appVersionText').innerText = `v${version}`;
+});
+
 updateToggleUI(startupBtn, isStartupEnabled);
 updateToggleUI(statsBtn, isStatsEnabled);
 // sync main process with loaded variables

@@ -365,6 +365,9 @@ ipcMain.handle("toggle-stats", (event, enabled) => {
   config.sendStats = enabled;
 });
 
+// dynamic version handling lmao
+ipcMain.handle("get-version", () => app.getVersion());
+
 // app lifecycle
 app.whenReady().then(() => {
   createWindow();
