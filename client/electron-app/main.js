@@ -366,7 +366,8 @@ ipcMain.handle("toggle-stats", (event, enabled) => {
 });
 
 // dynamic version handling lmao
-ipcMain.handle("get-version", () => app.getVersion());
+const appVersion = require("./package.json").version;
+ipcMain.handle("get-version", () => appVersion);
 
 // app lifecycle
 app.whenReady().then(() => {
