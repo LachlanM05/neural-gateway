@@ -221,6 +221,69 @@ async function handlePassthrough(req, res) {
   }, 300000);
 }
 
+// --- DIAGNOSTIC ENDPOINT ---
+app.post('/api/diagnostic/ping-node', async (req, res) => {
+  const { username, slug, key } = req.body;
+
+  if (!username || !slug || !key) {
+      return sendError(res, 400, 'Missing credentials for diagnostic test.');
+  }
+
+  try {
+      // 1. Verify credentials against the database
+      const dbRes = await db.query(`
+          SELECT clients.id
+          FROM clients 
+          JOIN users ON clients.user_id = users.id 
+          WHERE users.username = $1 AND clients.client_slug = $2 AND clients.api_key = $3
+      `, [username, slug, key]);
+
+      if (dbRes.rows.length === 0) {
+          return sendError(res, 401, 'Diagnostic Failed: Invalid Credentials');
+      }
+
+      // 2. Check if the WebSocket tunnel is currently active
+      const tunnelId = `${username}/${slug}`;
+      const tunnel = activeTunnels.get(tunnelId);
+
+      if (!tunnel || tunnel.readyState !== 1) { // 1 = WebSocket.OPEN
+          return sendError(res, 502, 'Diagnostic Failed: Node is not connected to the Gateway.');
+      }
+
+      // 3. Send the diagnostic request through the tunnel
+      const requestId = 'diag-' + Date.now() + '-' + crypto.randomBytes(4).toString('hex');
+      
+      // We leverage the existing pendingRequests system. 
+      // When the node replies, the standard ws.on('message') will fulfill this HTTP response.
+      pendingRequests.set(requestId, { 
+          res, 
+          startTime: Date.now(), 
+          model: 'diagnostic-ping' 
+      });
+
+      // We use the lightweight api/tags endpoint to verify Ollama is reachable 
+      // without triggering a heavy generation task.
+      tunnel.send(JSON.stringify({
+          requestId,
+          method: 'GET',
+          path: 'api/tags', 
+          body: {}
+      }));
+
+      // 4. Timeout fallback (14 seconds to respond just before the client's 15s timeout hits)
+      setTimeout(() => {
+          if (pendingRequests.has(requestId)) {
+              pendingRequests.get(requestId).res.status(504).json({ error: 'Diagnostic Timeout: Node did not respond in time.' });
+              pendingRequests.delete(requestId);
+          }
+      }, 14000);
+
+  } catch (e) {
+      console.error('[Gateway] Diagnostic error:', e);
+      sendError(res, 500, 'Internal Server Error during diagnostic ping');
+  }
+});
+
 app.all('/users/:username/:clientid/*', verifyAccess, handlePassthrough);
 
 server.listen(PORT, () => {

@@ -369,6 +369,37 @@ ipcMain.handle("toggle-stats", (event, enabled) => {
 const appVersion = require("./package.json").version;
 ipcMain.handle("get-version", () => appVersion);
 
+
+// --- DIAGNOSTIC TESTS ---
+
+// Test 1: Directly Ping Local Ollama
+ipcMain.handle('test-local-ollama', async () => {
+    try {
+        // Hitting the tags endpoint is the standard way to check if Ollama is awake
+        const res = await axios.get(`${LOCAL_OLLAMA}/api/tags`, { timeout: 5000 });
+        return { success: true, modelsCount: res.data.models ? res.data.models.length : 0 };
+    } catch (err) {
+        return { success: false, error: err.message };
+    }
+});
+
+// Test 2: Ask the Server for a Test Prompt
+ipcMain.handle('test-server-roundtrip', async (event, { username, slug, apiKey }) => {
+    try {
+        const res = await axios.post(`https://api.lachlanm05.com/api/diagnostic/ping-node`, {
+            username, slug, key: apiKey
+        }, { timeout: 125000 }); // 125s timeout to allow generation
+        
+        return { success: true, data: res.data };
+    } catch (err) {
+        // Extract useful server error message if it exists
+        const errorMsg = err.response && err.response.data 
+            ? JSON.stringify(err.response.data) 
+            : err.message;
+        return { success: false, error: errorMsg };
+    }
+});
+
 // app lifecycle
 app.whenReady().then(() => {
   createWindow();

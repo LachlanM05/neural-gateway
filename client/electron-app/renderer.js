@@ -124,3 +124,74 @@ window.api.onStatus((message) => {
         connectedControls.style.display = 'none';
     }
 });
+
+
+// --- DIAGNOSTICS LOGIC ---
+const appVersionText = document.getElementById('appVersionText');
+const diagModal = document.getElementById('diagModal');
+const closeDiagBtn = document.getElementById('closeDiagBtn');
+const runTestsBtn = document.getElementById('runTestsBtn');
+const copyLogsBtn = document.getElementById('copyLogsBtn');
+const diagLogs = document.getElementById('diagLogs');
+
+function logDiag(msg) {
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    diagLogs.value += `[${time}] ${msg}\n`;
+    diagLogs.scrollTop = diagLogs.scrollHeight;
+}
+
+// Open Diagnostic Window
+appVersionText.addEventListener('click', () => {
+    diagModal.classList.remove('hidden');
+});
+
+// Close Diagnostic Window
+closeDiagBtn.addEventListener('click', () => {
+    diagModal.classList.add('hidden');
+});
+
+// Copy Logs
+copyLogsBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(diagLogs.value);
+    const oldText = copyLogsBtn.innerText;
+    copyLogsBtn.innerText = "Copied!";
+    setTimeout(() => copyLogsBtn.innerText = oldText, 2000);
+});
+
+// Execute Tests Sequence
+runTestsBtn.addEventListener('click', async () => {
+    runTestsBtn.disabled = true;
+    diagLogs.value = ""; // Clear previous
+    logDiag("STARTING NODE DIAGNOSTICS...");
+
+    // 1. OLLAMA TEST
+    logDiag("-> Running Ollama Local Test...");
+    const ollamaResult = await window.api.testLocalOllama();
+    if (ollamaResult.success) {
+        logDiag(`[PASS] Ollama is online (${ollamaResult.modelsCount} models found)`);
+    } else {
+        logDiag(`[FAIL] Ollama unreachable: ${ollamaResult.error}`);
+    }
+
+    // 2. SERVER ROUNDTRIP TEST
+    const username = localStorage.getItem('username');
+    const slug = localStorage.getItem('slug');
+    const apiKey = localStorage.getItem('apiKey');
+
+    if (!username || !slug || !apiKey) {
+        logDiag("[SKIP] Server test skipped (Node credentials missing).");
+    } else {
+        logDiag("-> Running Server -> Node -> Ollama Test...");
+        logDiag("Waiting for server response (this may take up to 15s)...");
+        
+        const serverResult = await window.api.testServerRoundtrip({ username, slug, apiKey });
+        if (serverResult.success) {
+            logDiag(`[PASS] End-to-End Tunnel Verified!`);
+        } else {
+            logDiag(`[FAIL] Server roundtrip failed: ${serverResult.error}`);
+        }
+    }
+
+    logDiag("DIAGNOSTICS COMPLETE.");
+    runTestsBtn.disabled = false;
+});

@@ -1,6 +1,6 @@
 {
   "name": "neural-gateway-lachlanm05",
-  "version": "1.2.2",
+  "version": "1.2.8",
   "description": "Neural Gateway Node Client",
   "main": "main.js",
   "author": "LachlanM05 <lachlan@lachlanm05.com>",

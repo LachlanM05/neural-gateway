@@ -1,0 +1,67 @@
+name: Build Apps
+
+on:
+  push:
+    branches: [ "main" ]
+  release:
+    types: [ created ]
+
+jobs:
+  build-electron:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # Build on Windows, Mac, and Linux to get all installers
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18 # Required Node version
+
+      - name: Install Dependencies
+        working-directory: ./client/electron-app
+        run: npm install
+
+      - name: Build Electron App & YAMLs
+        working-directory: ./client/electron-app
+        # This triggers electron-builder which creates the executables and latest.yml files
+        run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: electron-builds-${{ matrix.os }}
+          path: client/electron-app/dist/**/*
+          
+  build-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        working-directory: ./client/cli-app
+        run: npm install
+
+      - name: Build CLI App
+        working-directory: ./client/cli-app
+        # This triggers pkg to build for linux, win, and macos as defined in your package.json
+        run: npm run build
+
+      - name: Upload CLI Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: cli-builds
+          path: client/cli-app/dist/**/*

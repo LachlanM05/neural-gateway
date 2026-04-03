@@ -1,171 +1,350 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neural Gateway</title>
-    <style>
-        :root {
-            --bg: #0b0c10; --card: #11131a; --border: #222635;
-            --text: #e6e9ef; --accent: #7af; --muted: #a3adc2;
-            --ok: #79e08f; --danger: #ff7a7a; --font: system-ui, sans-serif;
-            --mono: monospace;
-        }
-        body {
-            background: var(--bg); color: var(--text); font-family: var(--font);
-            margin: 0; padding: 20px; user-select: none;
-            overflow: hidden; /* No scrollbars on small app */
-        }
-        .header { text-align: center; margin-bottom: 20px; }
-        .avatar { width: 60px; height: 60px; background: var(--card); border: 1px solid var(--border); border-radius: 50%; margin: 0 auto 10px; display: block; }
-        h2 { margin: 0; font-size: 1.2rem; }
-        p { margin: 5px 0 0; font-size: 0.8rem; color: var(--muted); }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neural Gateway</title>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --card: #11131a;
+      --border: #222635;
+      --text: #e6e9ef;
+      --accent: #7af;
+      --muted: #a3adc2;
+      --ok: #79e08f;
+      --danger: #ff7a7a;
+      --font: system-ui, sans-serif;
+      --mono: monospace;
+    }
 
-        .card {
-            background: var(--card); border: 1px solid var(--border);
-            border-radius: 14px; padding: 15px; margin-bottom: 15px;
-        }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      margin: 0;
+      padding: 20px;
+      user-select: none;
+      overflow: hidden;
+      /* No scrollbars on small app */
+    }
 
-        .status-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 15px; }
-        .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); transition: 0.3s; }
-        .connected .dot { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
-        .disconnected .dot { background: var(--danger); }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
 
-        input {
-            width: 100%; box-sizing: border-box; background: var(--bg);
-            border: 1px solid var(--border); color: var(--text);
-            padding: 8px 12px; border-radius: 8px; margin-bottom: 10px;
-            font-family: var(--mono); font-size: 0.85rem;
-            outline: none;
-        }
-        input:focus { border-color: var(--accent); }
+    .avatar {
+      width: 60px;
+      height: 60px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      margin: 0 auto 10px;
+      display: block;
+    }
 
-        button {
-            width: 100%; padding: 10px; border-radius: 8px; border: none;
-            cursor: pointer; font-weight: 600; font-size: 0.9rem;
-            transition: 0.2s;
-        }
-        .btn-main { background: var(--accent); color: #000; }
-        .btn-main:hover { background: #59d; color: #fff; }
-        .btn-disconnect { background: var(--danger); color: #000; }
-        
-        .toggle-row {
-            display: flex; justify-content: space-between; align-items: center;
-            font-size: 0.85rem; color: var(--muted); margin-bottom: 10px;
-        }
-        .toggle-btn {
-            background: var(--bg); border: 1px solid var(--border);
-            color: var(--muted); width: auto; padding: 4px 10px; font-size: 0.75rem;
-        }
-        .toggle-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(119, 170, 255, 0.1); }
+    h2 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
 
-        .footer { position: fixed; bottom: 10px; width: 100%; text-align: center; font-size: 0.7rem; color: var(--muted); left: 0;}
+    p {
+      margin: 5px 0 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
 
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); z-index: 100;
-            display: flex; justify-content: center; align-items: center;
-            backdrop-filter: blur(4px);
-        }
-        .modal {
-            background: var(--card); border: 1px solid var(--accent);
-            padding: 25px; border-radius: 14px; max-width: 85%;
-            text-align: center; box-shadow: 0 0 30px rgba(0,0,0,0.6);
-        }
-        .modal h3 { color: var(--accent); margin-top: 0; }
-        .modal p { color: var(--text); line-height: 1.5; margin-bottom: 15px; }
-        .modal a { color: var(--accent); text-decoration: none; }
-        .hidden { display: none !important; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
 
-        .social-container {
-            position: fixed; bottom: 12px; right: 12px;
-            display: flex; gap: 10px; z-index: 50;
-        }
-        .social-icon {
-            width: 28px; height: 28px;
-            opacity: 0.6; transition: 0.2s;
-            cursor: pointer; object-fit: contain;
-        }
-        .social-icon:hover { opacity: 1; transform: scale(1.1); }
-    </style>
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: 0.3s;
+    }
+
+    .connected .dot {
+      background: var(--ok);
+      box-shadow: 0 0 10px var(--ok);
+    }
+
+    .disconnected .dot {
+      background: var(--danger);
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: 0.2s;
+    }
+
+    .btn-main {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn-main:hover {
+      background: #59d;
+      color: #fff;
+    }
+
+    .btn-disconnect {
+      background: var(--danger);
+      color: #000;
+    }
+
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .toggle-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      width: auto;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+    }
+
+    .toggle-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(119, 170, 255, 0.1);
+    }
+
+    .footer {
+      position: fixed;
+      bottom: 10px;
+      width: 100%;
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+      left: 0;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 100;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--accent);
+      padding: 25px;
+      border-radius: 14px;
+      max-width: 85%;
+      text-align: center;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+    }
+
+    .modal h3 {
+      color: var(--accent);
+      margin-top: 0;
+    }
+
+    .modal p {
+      color: var(--text);
+      line-height: 1.5;
+      margin-bottom: 15px;
+    }
+
+    .modal a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .social-container {
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      display: flex;
+      gap: 10px;
+      z-index: 50;
+    }
+
+    .social-icon {
+      width: 28px;
+      height: 28px;
+      opacity: 0.6;
+      transition: 0.2s;
+      cursor: pointer;
+      object-fit: contain;
+    }
+
+    .social-icon:hover {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    #appVersionText {
+      cursor: pointer;
+      transition: 0.2s;
+      text-decoration: underline dotted;
+    }
+
+    #appVersionText:hover {
+      color: var(--accent);
+    }
+  </style>
 </head>
+
 <body>
 
-    <div id="welcomeModal" class="modal-overlay hidden">
-        <div class="modal">
-            <h3>Welcome to Neural Gateway</h3>
-            <p>
-                Thanks for downloading!<br><br>
-                If you need help setting up, please join our <a href="https://discord.gg/4ARq2cBtSy" target="_blank">Discord</a> or visit <a href="https://ai.lachlanm05.com" target="_blank">the website</a>.
-            </p>
-            <p style="font-size: 0.75rem; color: var(--muted); margin-top: 20px;">
-                If you enjoy this free tool, consider supporting development on Ko-fi.
-            </p>
-            <button id="closeWelcomeBtn" class="btn-main" style="width: auto; padding: 8px 24px; margin-top: 10px;">Get Started</button>
-        </div>
+  <div id="welcomeModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>Welcome to Neural Gateway</h3>
+      <p>
+        Thanks for downloading!<br><br>
+        If you need help setting up, please join our <a href="https://discord.gg/4ARq2cBtSy" target="_blank">Discord</a> or visit <a href="https://ai.lachlanm05.com" target="_blank">the website</a>.
+      </p>
+      <p style="font-size: 0.75rem; color: var(--muted); margin-top: 20px;">
+        If you enjoy this free tool, consider supporting development on Ko-fi.
+      </p>
+      <button id="closeWelcomeBtn" class="btn-main" style="width: auto; padding: 8px 24px; margin-top: 10px;">Get Started</button>
+    </div>
+  </div>
+
+  <div id="diagModal" class="modal-overlay hidden">
+    <div class="modal" style="max-width: 90%; width: 450px;">
+      <h3>System Diagnostics</h3>
+
+      <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <button id="runTestsBtn" class="btn-main">Run Tests</button>
+        <button id="copyLogsBtn" class="btn-main" style="background: var(--muted);">Copy Logs</button>
+      </div>
+
+      <textarea id="diagLogs" readonly spellcheck="false" style="
+            width: 100%; height: 200px; box-sizing: border-box;
+            background: var(--bg); color: var(--ok); 
+            border: 1px solid var(--border); border-radius: 8px; 
+            padding: 10px; font-family: var(--mono); font-size: 0.75rem; 
+            resize: none; outline: none; margin-bottom: 15px;
+        "></textarea>
+
+      <button id="closeDiagBtn" class="btn-disconnect">Close window</button>
+    </div>
+  </div>
+
+  <div class="header">
+    <div class="avatar" style="background-image: url('https://lachlanm05.com/assets/84118320.png'); background-size: cover;"></div>
+    <h2>Neural Gateway</h2>
+    <p>Neural Passthrough Node</p>
+  </div>
+
+  <div class="card" id="statusCard">
+    <div class="status-row disconnected" id="statusIndicator">
+      <span class="dot"></span>
+      <span id="statusText" style="font-family: var(--mono); font-weight: bold;">DISCONNECTED</span>
     </div>
 
-    <div class="header">
-        <div class="avatar" style="background-image: url('https://lachlanm05.com/assets/84118320.png'); background-size: cover;"></div>
-        <h2>Neural Gateway</h2>
-        <p>Neural Passthrough Node</p>
+    <div id="loginForm">
+      <div style="margin-bottom: 10px;">
+        <input type="text" id="usernameInput" placeholder="Username (e.g. LachlanM05)" spellcheck="false">
+      </div>
+
+      <div style="margin-bottom: 10px;">
+        <input type="text" id="slugInput" placeholder="Client Slug (e.g. home-pc)" spellcheck="false">
+      </div>
+
+      <div style="margin-bottom: 15px;">
+        <input type="password" id="keyInput" placeholder="API Key (sk-...)" spellcheck="false">
+      </div>
+
+      <button id="connectBtn" class="btn-main">Connect Node</button>
     </div>
 
-    <div class="card" id="statusCard">
-        <div class="status-row disconnected" id="statusIndicator">
-            <span class="dot"></span>
-            <span id="statusText" style="font-family: var(--mono); font-weight: bold;">DISCONNECTED</span>
-        </div>
-
-        <div id="loginForm">
-            <div style="margin-bottom: 10px;">
-                <input type="text" id="usernameInput" placeholder="Username (e.g. LachlanM05)" spellcheck="false">
-            </div>
-
-            <div style="margin-bottom: 10px;">
-                <input type="text" id="slugInput" placeholder="Client Slug (e.g. home-pc)" spellcheck="false">
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <input type="password" id="keyInput" placeholder="API Key (sk-...)" spellcheck="false">
-            </div>
-
-            <button id="connectBtn" class="btn-main">Connect Node</button>
-        </div>
-        
-        <div id="connectedControls" style="display: none;">
-            <p style="text-align:center; margin-bottom:15px; font-size: 0.9rem; opacity: 0.8;">Tunnel is active.<br>Do not close the app. (You can minimize)</p>
-            <button id="disconnectBtn" class="btn-disconnect">Disconnect</button>
-        </div>
+    <div id="connectedControls" style="display: none;">
+      <p style="text-align:center; margin-bottom:15px; font-size: 0.9rem; opacity: 0.8;">Tunnel is active.<br>Do not close the app. (You can minimize)</p>
+      <button id="disconnectBtn" class="btn-disconnect">Disconnect</button>
     </div>
+  </div>
 
-    <div class="card">
-        <div class="toggle-row">
-            <span>Open on Startup</span>
-            <button id="startupBtn" class="toggle-btn">OFF</button>
-        </div>
-        <div class="toggle-row">
-            <span>Send Optional Statistics</span>
-            <button id="statsBtn" class="toggle-btn active">ON</button>
-        </div>
-        <p style="font-size: 0.65rem; margin-top: 5px; opacity: 0.6;">
-            Stats include: CPU Model, RAM Amount, OS Version, & Uptime. No model responses.
-        </p>
+  <div class="card">
+    <div class="toggle-row">
+      <span>Open on Startup</span>
+      <button id="startupBtn" class="toggle-btn">OFF</button>
     </div>
-
-    <div class="footer">
-        <span id="appVersionText">v...</span> • Secure Endpoint
+    <div class="toggle-row">
+      <span>Send Optional Statistics</span>
+      <button id="statsBtn" class="toggle-btn active">ON</button>
     </div>
+    <p style="font-size: 0.65rem; margin-top: 5px; opacity: 0.6;">
+      Stats include: CPU Model, RAM Amount, OS Version, & Uptime. No model responses.
+    </p>
+  </div>
 
-    <div class="social-container">
-        <a href="https://discord.gg/4ARq2cBtSy" target="_blank">
-            <img src="https://lachlanm05.com/ai/electron-assets/discord.png" class="social-icon" alt="Discord">
-        </a>
-        <a href="https://ko-fi.com/lachlanm05" target="_blank">
-            <img src="https://lachlanm05.com/ai/electron-assets/kofi.png" class="social-icon" alt="Ko-fi">
-        </a>
-    </div>
+  <div class="footer">
+    <span id="appVersionText">v...</span> • Secure Endpoint
+  </div>
 
-    <script src="renderer.js"></script>
+  <div class="social-container">
+    <a href="https://discord.gg/4ARq2cBtSy" target="_blank">
+      <img src="https://lachlanm05.com/ai/electron-assets/discord.png" class="social-icon" alt="Discord">
+    </a>
+    <a href="https://ko-fi.com/lachlanm05" target="_blank">
+      <img src="https://lachlanm05.com/ai/electron-assets/kofi.png" class="social-icon" alt="Ko-fi">
+    </a>
+  </div>
+
+  <script src="renderer.js"></script>
 </body>
+
 </html>

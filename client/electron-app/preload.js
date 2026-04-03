@@ -5,5 +5,7 @@ contextBridge.exposeInMainWorld('api', {
     toggleStartup: (enabled) => ipcRenderer.invoke('toggle-startup', enabled),
     toggleStats: (enabled) => ipcRenderer.invoke('toggle-stats', enabled),
     onStatus: (callback) => ipcRenderer.on('status-update', (event, val) => callback(val)),
-    getVersion: () => ipcRenderer.invoke('get-version')
+    getVersion: () => ipcRenderer.invoke('get-version'),
+    testLocalOllama: () => ipcRenderer.invoke('test-local-ollama'),
+    testServerRoundtrip: (creds) => ipcRenderer.invoke('test-server-roundtrip', creds)
 });
