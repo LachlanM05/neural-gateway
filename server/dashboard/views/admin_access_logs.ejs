@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Access Logs // Admin</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .data-table th { text-align: left; padding: 12px; border-bottom: 2px solid var(--border); color: var(--muted); }
+    .data-table td { padding: 12px; border-bottom: 1px solid var(--border); }
+    .badge-ip { font-family: var(--mono); color: var(--muted); background: var(--bg); padding: 2px 6px; border-radius: 4px; }
+    .badge-status-success { color: #4ade80; font-weight: bold; }
+    .badge-status-error { color: var(--danger); font-weight: bold; }
+    .badge-status-redirect { color: #60a5fa; font-weight: bold; }
+    .badge-method { font-family: var(--mono); font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="wrap" style="max-width: 1400px;">
+    <header>
+      <div class="brand">
+        <span style="color:var(--danger)">ACCESS LOGS</span>
+      </div>
+      <nav>
+        <a href="/admin">← Back to Stats</a>
+      </nav>
+    </header>
+
+    <div class="tile">
+      <div class="kicker">Recent Endpoint Access (Last 500)</div>
+      <div style="overflow-x: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Timestamp</th>
+              <th>IP Address</th>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% logs.forEach(log => { 
+                let statusClass = 'badge-status-success';
+                if (log.status_code >= 400) statusClass = 'badge-status-error';
+                else if (log.status_code >= 300) statusClass = 'badge-status-redirect';
+            %>
+            <tr>
+              <td style="color:var(--muted)">#<%= log.id %></td>
+              <td><%= new Date(log.timestamp).toLocaleString() %></td>
+              <td><span class="badge-ip"><%= log.ip_address %></span></td>
+              <td><span class="badge-method"><%= log.method %></span></td>
+              <td style="font-family: var(--mono);"><%= log.path %></td>
+              <td><span class="<%= statusClass %>"><%= log.status_code %></span></td>
+            </tr>
+            <% }) %>
+            <% if(logs.length === 0) { %>
+                <tr><td colspan="6" style="text-align:center; padding:20px;">No access logs recorded yet.</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

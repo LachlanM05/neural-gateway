@@ -5,9 +5,10 @@ Go back to https://ai.lachlanm05.com
 
 Neural Gateway routes AI requests from the internet to a user’s local hardware through a secure WebSocket tunnel. It is composed of:
 
-- **Gateway (`server/gateway`)**: Express + WebSocket relay that receives HTTP requests and forwards them to a connected hardware client.
-- **Dashboard (`server/dashboard`)**: Express UI for user auth, client management, and basic usage stats.
-- **Electron client (`client/electron-app`)**: Connects local hardware to the gateway and proxies requests to a local Ollama instance.
+- **Gateway (`server/gateway`)**: Optimized Express + WebSocket relay with custom upgrade handling and global request logging.
+- **Dashboard (`server/dashboard`)**: Unified control panel for node management, user authentication, and real-time usage analytics.
+- **Electron Client (`client/electron-app`)**: Standalone desktop node that bridges local hardware to the gateway. Now features a dedicated **Diagnostic Setup Wizard** and bundled **LLMFit** for hardware optimization.
+
 
 Disclaimer:
 This project is not affiliated with, endorsed by, or supported by any AI platform.
@@ -30,11 +31,21 @@ It is a general-purpose, free, open-source tool that users may choose to configu
 ## Repository layout
 
 ```
-client/electron-app   # Electron desktop client
-server/gateway        # HTTP + WebSocket gateway
-server/dashboard      # Dashboard UI + auth
+client/electron-app   # Electron desktop client + Setup Wizard
+client/electron-app/bin/ # Bundled llmfit hardware benchmarker
+server/gateway        # HTTP + WebSocket gateway (Port 8787)
+server/dashboard      # Dashboard UI + auth (Port 3333)
 server/init_db.js     # Postgres schema bootstrap
 ```
+
+## Key Features
+
+- **Standalone Setup Wizard**: Dedicated 700x700 diagnostic window with real-time terminal logging.
+- **Hardware Benchmarking**: Includes `llmfit` by [AlexsJones](https://github.com/AlexsJones/llmfit) to verify GPU readiness.
+- **Privacy-First Logs**: Client-side log exporter with automatic redaction of IPs, API Keys, and Usernames.
+- **Global Access Logging**: Gateway-side tracking of all incoming traffic for debugging and security.
+- **Automated Updates**: Integrated `electron-updater` pipeline pulling from `thelit.club`.
+
 
 
 ## Setup

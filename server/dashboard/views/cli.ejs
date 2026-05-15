@@ -6,10 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Neural Gateway // LachlanM05</title>
   <meta name="description" content="Securely bridge your local AI hardware to the public web." />
-  <link rel="icon" type="image/x-icon" href="https://lachlanm05.com/ai/favicon.ico" /> <!-- in prod, make it /favicon.ico -->
-  <link rel="stylesheet" href="/style.css" /> <!-- in prod, make it /style.css -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/style.css" />
 
   <style>
+    /* landing page specific overrides */
     .hero-btn {
         display: inline-block;
         padding: 12px 24px;
@@ -54,6 +55,7 @@
         background: rgba(121, 224, 143, 0.2);
     }
 
+    /* Image Container in Aside */
     .hero-image-container {
         text-align: center;
         margin-bottom: 20px;
@@ -82,13 +84,8 @@
         <span>LachlanM05</span>
       </div>
       <nav aria-label="Primary">
-        <a href="https://lachlanm05.com/ai/abuse">Abuse</a>
+        <a href="https://lachlanm05.com">Main Site</a>
         <a href="https://github.com/LachlanM05" target="_blank">GitHub</a>
-        <% if (user) { %>
-            <a href="/dashboard" style="color: var(--accent); border-color: var(--accent);">Dashboard</a>
-        <% } else { %>
-            <a href="/login">Login</a>
-        <% } %>
       </nav>
     </header>
 
@@ -104,7 +101,7 @@
         </p>
 
         <div class="badges" style="margin: 20px 0;">
-          <span class="badge">Windows Client /</span>
+          <span class="badge">Cross-Platform CLI /</span>
           <span class="badge">OpenAI Compatible /</span>
           <span class="badge">End-to-End Tunnel</span>
         </div>
@@ -125,19 +122,19 @@
             <div class="kicker">Security Report</div>
             <h3 style="margin-bottom: 5px;">Client Safety</h3>
             <p class="muted" style="font-size: 0.85rem;">
-              The client is an unsigned Electron executable. I believe in transparency.
+              The clients are standalone CLI binaries. I believe in transparency.
             </p>
 
             <div style="margin-top: 15px;">
-                <div class="kicker" style="font-size: 0.7rem;">VirusTotal Scan (v1.2.0)</div>
-                <a href="https://www.virustotal.com/gui/file/8dc5883fd066fd5327ddb1f5dd4fb74f7996296f35c482e70455ca20901e6763" target="_blank" style="text-decoration:none;">
+                <div class="kicker" style="font-size: 0.7rem;">VirusTotal Scan (v1.0.0)</div>
+                <a href="#" target="_blank" style="text-decoration:none;">
                     <div class="vt-badge">
                         <span>🛡️ 0/71 Detections</span>
                     </div>
                 </a>
             </div>
             <p class="muted" style="font-size: 0.7rem; margin-top: 10px; opacity: 0.6;">
-                *Windows Smartscreen might warn you, as I can't afford a signing cert. This detection will be updated within 5 minutes of each update that is pushed.
+                *Your OS might warn you about running unsigned binaries, as I can't afford a signing cert. This detection link will be updated within 5 minutes of each update that is pushed.
             </p>
         </div>
       </aside>
@@ -161,7 +158,7 @@
             </article>
             <article class="project">
                 <h3>4. Safety</h3>
-                <p class="muted">Only allowed websites are permitted to send requests. All others are blocked by CORS. Worried about your data safety? Don't be. <a href="https://lachlanm05.com/ai/data">Your model responses and your prompts are not kept.</a></p>
+                <p class="muted">Only IP's you permit will be able to send requests.</p>
             </article>
         </div>
       </div>
@@ -185,17 +182,21 @@
             <div class="listitem">
                 <div>
                     <span class="step-number">02</span>
-                    <strong>Download Client</strong>
-                    <p class="muted" style="margin:0;">Download the <code>.exe</code> and install it on your PC running Ollama.</p>
+                    <strong>Download CLI Client</strong>
+                    <p class="muted" style="margin:0;">Download the binary for your operating system and place it on your PC running Ollama.</p>
                 </div>
-                <a href="https://lachlanm05.com/ai/updater/Neural Gateway Setup 1.2.8.exe" class="btn">Download</a>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <a href="https://lachlanm05.com/ai/cli-branch/neural-gateway-cli-linux" class="btn">Linux</a>
+                    <a href="https://lachlanm05.com/ai/cli-branch/neural-gateway-cli-macos" class="btn">Mac</a>
+                    <a href="https://lachlanm05.com/ai/cli-branch/neural-gateway-cli-win.exe" class="btn">Windows</a>
+                </div>
             </div>
 
             <div class="listitem">
                 <div>
                     <span class="step-number">03</span>
                     <strong>Link & Launch</strong>
-                    <p class="muted" style="margin:0;">Copy your Slug and Key from the Dashboard into the App.</p>
+                    <p class="muted" style="margin:0;">Run the CLI executable from your terminal. Follow the interactive prompt to enter your Username, Slug, and API Key from the Dashboard on first launch.</p>
                 </div>
             </div>
 
@@ -211,7 +212,7 @@
                 <div>
                     <span class="step-number"></span>
                     <strong>Lost?</strong>
-                    <p class="muted" style="margin:0;">Head over to <a href="https://discord.gg/4ARq2cBtSy">my discord</a> and into the Neural Gateway category for more info.</p>
+                    <p class="muted" style="margin:0;">Head over to <a href="https://discord.gg/lachlansbox">my discord</a> and into the Neural Gateway category for more info.</p>
                 </div>
             </div>
         </div>
@@ -221,12 +222,12 @@
         <div class="kicker">Open Source</div>
         <h2>Audit the Code</h2>
         <p class="muted">
-            Don't trust the EXE and a inconspicuous virus total result? Good.
+            Don't trust the binary and a inconspicuous virus total result? Good.
             <br><br>
             The entire stack is open source.
         </p>
         <div class="links" style="margin-top: 20px;">
-            <a href="https://github.com/LachlanM05/neural-gateway" target="_blank">
+            <a href="https://github.com/LachlanM05/neural-gateway/tree/cli-client" target="_blank">
                 View Source on GitHub
             </a>
         </div>

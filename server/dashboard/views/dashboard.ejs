@@ -46,7 +46,7 @@
         <div style="margin-top: 15px;">
           <button
              class="btn-primary"
-             onclick="window.location.href='https://lachlanm05.com/ai/Neural Gateway Setup 1.2.0.exe'"
+             onclick="window.location.href='https://lachlanm05.com/ai/updater/Neural Gateway Setup 1.2.8.exe'"
           >
               Download .EXE
           </button>
@@ -67,7 +67,7 @@
                 <button type="submit" class="btn-primary">Create Client</button>
             </form>
         </div>
-        
+
         <div class="table-wrap">
         <table>
           <thead>
@@ -84,7 +84,7 @@
                 <div style="font-weight:700; font-size:1rem; color:var(--text); margin-bottom:4px;">
                     <%= c.client_slug %>
                 </div>
-                
+
                 <div style="font-size:0.75rem; color:var(--muted); line-height:1.4;">
                    <% if(c.app_uptime > 0) { %>
                        <span style="color:var(--ok);">● Online</span> (<%= Math.round(c.app_uptime/60) %>m)
@@ -92,8 +92,8 @@
                        <span style="color:var(--danger);">● Offline</span>
                    <% } %>
                    <br>
-                   <% if(c.hardware_info) { 
-                      try { 
+                   <% if(c.hardware_info) {
+                      try {
                           const hw = typeof c.hardware_info === 'string' ? JSON.parse(c.hardware_info) : c.hardware_info;
                    %>
                         <%= hw.cpu %> • <%= hw.ram %>
@@ -118,7 +118,7 @@
               </td>
             </tr>
             <% }) %>
-            
+
             <% if(clients.length === 0) { %>
                 <tr><td colspan="3" style="text-align:center; padding:30px; color:var(--muted);">No clients created yet.</td></tr>
             <% } %>

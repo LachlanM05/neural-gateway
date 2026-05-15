@@ -1,6 +1,6 @@
 {
   "name": "neural-gateway-lachlanm05",
-  "version": "1.2.8",
+  "version": "1.3.0",
   "description": "Neural Gateway Node Client",
   "main": "main.js",
   "author": "LachlanM05 <lachlan@lachlanm05.com>",
@@ -16,13 +16,25 @@
     "publish": [
       {
         "provider": "generic",
-        "url": "https://lachlanm05.com/ai/updater/"
+        "url": "https://thelit.club/api/neural/"
       }
     ],
+
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "icon": "logo.ico"
     },
+    "extraResources": [
+      {
+        "from": "bin/",
+        "to": "bin/",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
@@ -30,11 +42,17 @@
       "createStartMenuShortcut": true
     },
     "mac": {
-      "target": ["dmg", "zip"],
-      "icon": "logo.icns" 
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "logo.icns"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "icon": "logo.png"
     }
   },

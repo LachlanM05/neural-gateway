@@ -13,15 +13,20 @@ const WebSocket = require("ws");
 const axios = require("axios");
 const si = require("systeminformation");
 const AutoLaunch = require("auto-launch");
+const { exec, spawn } = require('child_process');
+
 
 // conf
 const DASHBOARD_URL = "https://ai.lachlanm05.com";
 const GATEWAY_WS = "wss://api.lachlanm05.com/tunnel";
 const LOCAL_OLLAMA = "http://127.0.0.1:11434";
-const UPDATE_URL = "https://lachlanm05.com/ai/updater/";
+const UPDATE_URL = "https://thelit.club/api/neural/";
+
 
 let mainWindow;
+let setupWindow;
 let tray;
+
 let socket;
 let isConnected = false;
 let isManualDisconnect = false;
@@ -123,6 +128,34 @@ function createWindow() {
     return { action: "deny" };
   });
 }
+
+function createSetupWindow() {
+  if (setupWindow) {
+    setupWindow.focus();
+    return;
+  }
+
+  setupWindow = new BrowserWindow({
+    width: 700,
+    height: 700,
+    resizable: false,
+    icon: path.join(__dirname, "icon.ico"),
+    autoHideMenuBar: true,
+    title: "Setup Wizard",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  setupWindow.loadFile("setup.html");
+
+  setupWindow.on("closed", () => {
+    setupWindow = null;
+  });
+}
+
 
 function createTray() {
   const iconPath = path.join(__dirname, "icon.ico");
@@ -369,6 +402,40 @@ ipcMain.handle("toggle-stats", (event, enabled) => {
 const appVersion = require("./package.json").version;
 ipcMain.handle("get-version", () => appVersion);
 
+// --- SETUP WIZARD HANDLERS ---
+
+// Configure Ollama to allow local network connections via PowerShell
+ipcMain.handle('run-setup-ollama', async () => {
+    return new Promise((resolve) => {
+        // Set the environment variable at the User level
+        const command = "powershell.exe -Command \"[System.Environment]::SetEnvironmentVariable('OLLAMA_HOST', '0.0.0.0', 'User')\"";
+        exec(command, (err, stdout, stderr) => {
+            if (err) {
+                resolve({ success: false, error: stderr || err.message });
+            } else {
+                resolve({ success: true, output: stdout });
+            }
+        });
+    });
+});
+
+// Launch the bundled llmfit executable in a new window
+ipcMain.handle('launch-llmfit', async () => {
+    return new Promise((resolve) => {
+        const basePath = app.isPackaged ? process.resourcesPath : __dirname;
+        const llmfitPath = path.join(basePath, 'bin', 'llmfit.exe');
+
+        // Spawn a detached command prompt running the TUI
+        const child = spawn('cmd.exe', ['/c', 'start', 'Hardware Check', llmfitPath], {
+            detached: true,
+            stdio: 'ignore'
+        });
+        
+        child.unref();
+        resolve({ success: true });
+    });
+});
+
 
 // --- DIAGNOSTIC TESTS ---
 
@@ -399,6 +466,24 @@ ipcMain.handle('test-server-roundtrip', async (event, { username, slug, apiKey }
         return { success: false, error: errorMsg };
     }
 });
+
+ipcMain.handle('open-setup-wizard', () => {
+    createSetupWindow();
+});
+
+ipcMain.handle('get-connection-status', () => {
+    return isConnected;
+});
+
+ipcMain.handle('trigger-connection', (event, creds) => {
+    if (!isConnected) {
+        connectTunnel(creds.username, creds.apiKey, creds.slug);
+        return { success: true };
+    }
+    return { success: true, alreadyConnected: true };
+});
+
+
 
 // app lifecycle
 app.whenReady().then(() => {

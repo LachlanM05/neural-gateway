@@ -1,13 +1,9 @@
-import db from './db.js';
-
-const schema = `
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     verify_token TEXT,
-    reset_token TEXT,
     verified INTEGER DEFAULT 0,
     signup_ip TEXT,
     last_login_ip TEXT,
@@ -43,27 +39,3 @@ CREATE TABLE IF NOT EXISTS request_logs (
     duration_ms INTEGER,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE TABLE IF NOT EXISTS access_logs (
-    id SERIAL PRIMARY KEY,
-    ip_address TEXT,
-    method TEXT,
-    path TEXT,
-    status_code INTEGER,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-`;
-
-async function run() {
-    try {
-        console.log("⏳ Connecting to Postgres...");
-        await db.query(schema);
-        console.log("✅ Success! Tables created.");
-        process.exit(0);
-    } catch (err) {
-        console.error("❌ Error:", err.message);
-        process.exit(1);
-    }
-}
-
-run();

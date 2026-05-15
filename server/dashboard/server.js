@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import db from '../db.js';
-import { sendVerificationEmail } from './mailer.js';
+import { sendVerificationEmail, sendPasswordResetEmail, sendGlobalEmail } from './mailer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,8 +23,26 @@ app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+const IGNORED_LOG_PATHS = ['/dashboard', '/settings', '/update-url', '/admin', '/.well-known/security.txt'];
+
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    const p = req.path;
+    if (IGNORED_LOG_PATHS.includes(p) || p.endsWith('.css') || p.endsWith('.ico') || p.endsWith('.png') || p.endsWith('.jpg')) {
+      return;
+    }
+    console.log(`[PM2] ACCESS: ${req.method} ${req.originalUrl} | IP: ${req.ip} | STATUS: ${res.statusCode}`);
+    
+    db.query(
+      'INSERT INTO access_logs (ip_address, method, path, status_code) VALUES ($1, $2, $3, $4)', 
+      [req.ip, req.method, req.originalUrl, res.statusCode]
+    ).catch(e => console.error("[PM2] Failed to log access to DB", e.message));
+  });
+  next();
+});
+
 app.use(session({ 
-  secret: process.env.SESSION_SECRET, 
+  secret: process.env.SESSION_SECRET || 'dev-fallback-do-not-use-in-prod', 
   resave: false, 
   saveUninitialized: false,
   name: 'ng_sid',
@@ -49,7 +67,7 @@ const requireAdmin = (req, res, next) => {
 };
 
 app.get('/', (req, res) => res.render('index', { user: req.session.userId }));
-
+app.get('/cli', (req, res) => res.render('cli', { user: req.session.userId }));
 app.get('/login', (req, res) => {
   const verified = req.query.verified === 'true'; 
   const error = req.query.error;
@@ -66,6 +84,7 @@ app.post('/login', async (req, res, next) => {
     
     if (user && await bcrypt.compare(password, user.password_hash)) {
       if (user.is_suspended === 1) {
+         console.log(`[PM2] LOGIN BLOCKED: Suspended account '${username}' from IP ${ip}`);
          return res.redirect('/login?error=Account Deletion in Progress. Contact Admin.');
       }
 
@@ -76,6 +95,7 @@ app.post('/login', async (req, res, next) => {
 
           req.session.userId = user.id;
           req.session.username = user.username;
+          console.log(`[PM2] LOGIN SUCCESS: User '${username}' from IP ${ip}`);
 
           req.session.save((err) => {
               if (err) return next(err);
@@ -85,6 +105,7 @@ app.post('/login', async (req, res, next) => {
       });
 
     } else {
+      console.log(`[PM2] LOGIN FAILED: User '${username}' from IP ${ip}`);
       res.redirect('/login?error=Invalid credentials');
     }
   } catch (err) {
@@ -119,6 +140,7 @@ app.post('/register', async (req, res) => {
     await db.query(stmt, [username, hash, email, token, ip, ip, mailingListValue]);
     
     try { await sendVerificationEmail(email, token); } catch(e) { console.error("Email failed", e); }
+    console.log(`[PM2] REGISTRATION SUCCESS: User '${username}' from IP ${ip}`);
 
     res.send(`
       <link rel="stylesheet" href="/style.css">
@@ -132,6 +154,7 @@ app.post('/register', async (req, res) => {
     `);
   } catch (e) { 
     console.error(e);
+    console.log(`[PM2] REGISTRATION FAILED: '${username}' or '${email}' taken. IP ${ip}`);
     res.send('Username or Email already taken.'); 
   }
 });
@@ -153,13 +176,67 @@ app.get('/verify', async (req, res) => {
   }
 });
 
+app.get('/forgot-password', (req, res) => {
+  res.render('forgot_password', { error: req.query.error, success: req.query.success });
+});
+
+app.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  const ip = req.ip;
+  console.log(`[PM2] PASSWORD RESET REQUEST: Email '${email}' from IP ${ip}`);
+  try {
+    const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = rows[0];
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex');
+      await db.query('UPDATE users SET reset_token = $1 WHERE id = $2', [token, user.id]);
+      try { await sendPasswordResetEmail(email, token); } catch (e) { console.error("[PM2] ERROR sending reset email:", e); }
+    }
+    res.redirect('/forgot-password?success=If your email exists in our system, a password reset link has been sent.');
+  } catch (err) {
+    console.error("[PM2] ERROR in forgot password:", err);
+    res.redirect('/forgot-password?error=Server error');
+  }
+});
+
+app.get('/reset-password', async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.send('Invalid token.');
+  try {
+    const { rows } = await db.query('SELECT id FROM users WHERE reset_token = $1', [token]);
+    if (!rows[0]) return res.send('Invalid or expired reset link.');
+    res.render('reset_password', { token, error: req.query.error });
+  } catch (err) {
+    res.status(500).send("Database Error");
+  }
+});
+
+app.post('/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return res.redirect(`/reset-password?token=${token}&error=All fields required.`);
+  try {
+    const { rows } = await db.query('SELECT id, username FROM users WHERE reset_token = $1', [token]);
+    const user = rows[0];
+    if (!user) return res.send('Invalid or expired reset link.');
+    
+    const hash = await bcrypt.hash(password, 10);
+    await db.query('UPDATE users SET password_hash = $1, reset_token = NULL WHERE id = $2', [hash, user.id]);
+    console.log(`[PM2] PASSWORD RESET SUCCESS: User '${user.username}'`);
+    
+    res.redirect('/login?verified=true'); 
+  } catch (err) {
+    console.error("[PM2] ERROR resetting password:", err);
+    res.redirect(`/reset-password?token=${token}&error=Server error`);
+  }
+});
+
 app.get('/admin', requireAuth, requireAdmin, async (req, res) => {
   try {
       const userCountRes = await db.query('SELECT COUNT(*) as count FROM users WHERE is_suspended = 0');
       const suspendedCountRes = await db.query('SELECT COUNT(*) as count FROM users WHERE is_suspended = 1');
       const queryCountRes = await db.query('SELECT COUNT(*) as count FROM request_logs');
       
-      // postgres interval syntax
+      // Postgres interval syntax
       const activeRes = await db.query(`SELECT COUNT(DISTINCT client_id) as count FROM connection_logs WHERE connected_at > NOW() - INTERVAL '1 day'`);
       
       const logsRes = await db.query(`
@@ -170,7 +247,7 @@ app.get('/admin', requireAuth, requireAdmin, async (req, res) => {
           ORDER BY timestamp DESC LIMIT 50
       `);
 
-      // postgres to_char for formatting hour
+      // Postgres to_char for formatting hour
       const hourlyRes = await db.query(`
         SELECT to_char(timestamp, 'HH24:00') as hour, COUNT(*) as count 
         FROM request_logs 
@@ -227,6 +304,59 @@ app.post('/admin/delete-user', requireAuth, requireAdmin, async (req, res) => {
     }
     
     res.redirect('/admin/users');
+});
+
+app.post('/admin/send-reset', requireAuth, requireAdmin, async (req, res) => {
+    const { user_id } = req.body;
+    try {
+        const { rows } = await db.query('SELECT id, email, username FROM users WHERE id = $1', [user_id]);
+        const user = rows[0];
+        if (user) {
+            const token = crypto.randomBytes(32).toString('hex');
+            await db.query('UPDATE users SET reset_token = $1 WHERE id = $2', [token, user.id]);
+            try { await sendPasswordResetEmail(user.email, token); } catch (e) { console.error("[PM2] ERROR sending reset email from admin:", e); }
+            console.log(`[PM2] ADMIN SENT RESET: For user '${user.username}'`);
+        }
+    } catch(e) {
+        console.error("[PM2] ERROR admin reset:", e);
+    }
+    res.redirect('/admin/users');
+});
+
+app.get('/admin/mailer', requireAuth, requireAdmin, (req, res) => {
+    res.render('admin_mailer', { success: req.query.success, error: req.query.error });
+});
+
+app.post('/admin/mailer', requireAuth, requireAdmin, async (req, res) => {
+    const { target, subject, body } = req.body;
+    console.log(`[PM2] ADMIN MAILER INITIATED: Target '${target}', Subject '${subject}'`);
+    try {
+        let query = 'SELECT email FROM users WHERE is_suspended = 0 AND verified = 1';
+        if (target === 'mailing_list') {
+            query += ' AND mailing_list = 1';
+        }
+        const { rows } = await db.query(query);
+        const emails = rows.map(r => r.email);
+        
+        console.log(`[PM2] ADMIN MAILER: Sending to ${emails.length} users.`);
+        if (emails.length > 0) {
+            sendGlobalEmail(emails, subject, body).catch(e => console.error("[PM2] ERROR sending global email:", e));
+        }
+        res.redirect('/admin/mailer?success=Emails dispatched to background sender.');
+    } catch(e) {
+        console.error("[PM2] ERROR admin mailer:", e);
+        res.redirect('/admin/mailer?error=Database error');
+    }
+});
+
+app.get('/admin/access-logs', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const { rows } = await db.query('SELECT * FROM access_logs ORDER BY id DESC LIMIT 500');
+        res.render('admin_access_logs', { logs: rows });
+    } catch (e) {
+        console.error(e);
+        res.status(500).send("DB Error");
+    }
 });
 
 app.get('/dashboard', requireAuth, async (req, res) => {

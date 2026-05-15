@@ -9,3 +9,13 @@ contextBridge.exposeInMainWorld('api', {
     testLocalOllama: () => ipcRenderer.invoke('test-local-ollama'),
     testServerRoundtrip: (creds) => ipcRenderer.invoke('test-server-roundtrip', creds)
 });
+
+contextBridge.exposeInMainWorld('gatewaySetup', {
+    configureOllama: () => ipcRenderer.invoke('run-setup-ollama'),
+    openLlmfit: () => ipcRenderer.invoke('launch-llmfit'),
+    openSetupWizard: () => ipcRenderer.invoke('open-setup-wizard'),
+    triggerConnection: (creds) => ipcRenderer.invoke('trigger-connection', creds),
+    getConnectionStatus: () => ipcRenderer.invoke('get-connection-status')
+});
+
+

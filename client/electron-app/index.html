@@ -248,42 +248,11 @@
 
 <body>
 
-  <div id="welcomeModal" class="modal-overlay hidden">
-    <div class="modal">
-      <h3>Welcome to Neural Gateway</h3>
-      <p>
-        Thanks for downloading!<br><br>
-        If you need help setting up, please join our <a href="https://discord.gg/4ARq2cBtSy" target="_blank">Discord</a> or visit <a href="https://ai.lachlanm05.com" target="_blank">the website</a>.
-      </p>
-      <p style="font-size: 0.75rem; color: var(--muted); margin-top: 20px;">
-        If you enjoy this free tool, consider supporting development on Ko-fi.
-      </p>
-      <button id="closeWelcomeBtn" class="btn-main" style="width: auto; padding: 8px 24px; margin-top: 10px;">Get Started</button>
-    </div>
-  </div>
-
-  <div id="diagModal" class="modal-overlay hidden">
-    <div class="modal" style="max-width: 90%; width: 450px;">
-      <h3>System Diagnostics</h3>
-
-      <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-        <button id="runTestsBtn" class="btn-main">Run Tests</button>
-        <button id="copyLogsBtn" class="btn-main" style="background: var(--muted);">Copy Logs</button>
-      </div>
-
-      <textarea id="diagLogs" readonly spellcheck="false" style="
-            width: 100%; height: 200px; box-sizing: border-box;
-            background: var(--bg); color: var(--ok); 
-            border: 1px solid var(--border); border-radius: 8px; 
-            padding: 10px; font-family: var(--mono); font-size: 0.75rem; 
-            resize: none; outline: none; margin-bottom: 15px;
-        "></textarea>
-
-      <button id="closeDiagBtn" class="btn-disconnect">Close window</button>
-    </div>
-  </div>
 
   <div class="header">
+
+
+
     <div class="avatar" style="background-image: url('https://lachlanm05.com/assets/84118320.png'); background-size: cover;"></div>
     <h2>Neural Gateway</h2>
     <p>Neural Passthrough Node</p>
@@ -332,8 +301,11 @@
   </div>
 
   <div class="footer">
-    <span id="appVersionText">v...</span> • Secure Endpoint
+    <span id="appVersionText">v...</span> • <button id="openSetupBtn" style="width: auto; padding: 2px 8px; font-size: 0.7rem; background: var(--card); border: 1px solid var(--border); color: var(--muted); border-radius: 4px; cursor: pointer;">Setup Wizard</button> • Secure Endpoint
   </div>
+
+
+
 
   <div class="social-container">
     <a href="https://discord.gg/4ARq2cBtSy" target="_blank">
@@ -344,7 +316,41 @@
     </a>
   </div>
 
+  <div id="welcomeModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>Welcome to Neural Gateway</h3>
+      <p>
+        Thanks for downloading!<br><br>
+        If you need help setting up, please join our <a href="https://discord.gg/4ARq2cBtSy" target="_blank">Discord</a> or visit <a href="https://ai.lachlanm05.com" target="_blank">the website</a>.
+      </p>
+      <p style="font-size: 0.75rem; color: var(--muted); margin-top: 20px;">
+        If you enjoy this free tool, consider supporting development on Ko-fi.
+      </p>
+      <button id="closeWelcomeBtn" class="btn-main" style="width: auto; padding: 8px 24px; margin-top: 10px;">Get Started</button>
+    </div>
+  </div>
+
+  <div id="diagModal" class="modal-overlay hidden">
+    <div class="modal" style="max-width: 90%; width: 450px;">
+      <h3>System Diagnostics</h3>
+
+      <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <button id="runTestsBtn" class="btn-main">Run Tests</button>
+        <button id="copyLogsBtn" class="btn-main" style="background: var(--muted);">Copy Logs</button>
+      </div>
+
+      <textarea id="diagLogs" readonly spellcheck="false" style="
+            width: 100%; height: 200px; box-sizing: border-box;
+            background: var(--bg); color: var(--ok); 
+            border: 1px solid var(--border); border-radius: 8px; 
+            padding: 10px; font-family: var(--mono); font-size: 0.75rem; 
+            resize: none; outline: none; margin-bottom: 15px;
+        "></textarea>
+
+      <button id="closeDiagBtn" class="btn-disconnect">Close window</button>
+    </div>
+  </div>
+
   <script src="renderer.js"></script>
 </body>
-
-</html>
+</html>

@@ -1,7 +1,7 @@
 // grab elements
 const statusText = document.getElementById('statusText');
-const statusDot = document.getElementById('statusDot');
 const loginForm = document.getElementById('loginForm');
+
 const connectedControls = document.getElementById('connectedControls');
 const statusIndicator = document.getElementById('statusIndicator');
 
@@ -195,3 +195,12 @@ runTestsBtn.addEventListener('click', async () => {
     logDiag("DIAGNOSTICS COMPLETE.");
     runTestsBtn.disabled = false;
 });
+// --- SETUP WIZARD LOGIC ---
+
+
+const openSetupBtn = document.getElementById('openSetupBtn');
+
+openSetupBtn.addEventListener('click', () => {
+    window.gatewaySetup.openSetupWizard();
+});
+

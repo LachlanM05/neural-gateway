@@ -12,11 +12,24 @@ const PORT = process.env.PORT_GATEWAY || 8787;
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ noServer: true });
 
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
-app.use(morgan('tiny'));
+
+app.use((req, res, next) => {
+    res.on('finish', () => {
+        const ip = req.ip || req.connection.remoteAddress;
+        
+        console.log(`[Gateway] HTTP ${req.method} ${req.originalUrl} | IP: ${ip} | STATUS: ${res.statusCode}`);
+        
+        db.query(
+            'INSERT INTO access_logs (ip_address, method, path, status_code) VALUES ($1, $2, $3, $4)', 
+            [ip, req.method, req.originalUrl, res.statusCode]
+        ).catch(e => console.error("[Gateway] Failed to log access to DB", e.message));
+    });
+    next();
+});
 
 const ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS 
     ? process.env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim()) 
@@ -51,35 +64,58 @@ const sendError = (res, status, message) => {
     res.status(status).json({ error: message });
 };
 
+server.on('upgrade', async (request, socket, head) => {
+    const url = new URL(request.url, `http://${request.headers.host}`);
+    const username = url.searchParams.get('username');
+    const slug = url.searchParams.get('slug');
+    const apiKey = url.searchParams.get('key');
+    const incomingIP = request.headers['x-forwarded-for']?.split(',')[0].trim() || request.socket.remoteAddress;
+
+    if (!username || !slug || !apiKey) {
+        console.log(`[WS] 🛑 Reject: Missing connection params from ${incomingIP}`);
+        db.query('INSERT INTO access_logs (ip_address, method, path, status_code) VALUES ($1, $2, $3, $4)', [incomingIP, 'WS-UPGRADE', request.url, 400]).catch(()=>{});
+        socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+        socket.destroy();
+        return;
+    }
+
+    try {
+        const resDb = await db.query(`
+            SELECT clients.id, users.username 
+            FROM clients 
+            JOIN users ON clients.user_id = users.id 
+            WHERE users.username = $1 AND clients.client_slug = $2 AND clients.api_key = $3
+        `, [username, slug, apiKey]);
+
+        const client = resDb.rows[0];
+
+        if (!client) {
+            console.log(`[WS] 🛑 Reject: Invalid Creds for ${username}/${slug} from IP ${incomingIP}`);
+            db.query('INSERT INTO access_logs (ip_address, method, path, status_code) VALUES ($1, $2, $3, $4)', [incomingIP, 'WS-UPGRADE', `/users/${username}/${slug}`, 401]).catch(()=>{});
+            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+            socket.destroy();
+            return;
+        }
+
+        db.query('INSERT INTO access_logs (ip_address, method, path, status_code) VALUES ($1, $2, $3, $4)', [incomingIP, 'WS-UPGRADE', `/users/${username}/${slug}`, 101]).catch(()=>{});
+
+        wss.handleUpgrade(request, socket, head, (ws) => {
+            wss.emit('connection', ws, request, client);
+        });
+    } catch (e) {
+        console.error(e);
+        socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+        socket.destroy();
+    }
+});
+
 // converted to async function to handle DB calls
-wss.on('connection', async (ws, req) => {
+wss.on('connection', async (ws, req, client) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
     
     const username = url.searchParams.get('username');
     const slug = url.searchParams.get('slug');
-    const apiKey = url.searchParams.get('key');
-
-    if (!username || !slug || !apiKey) {
-        console.log(`[WS] 🛑 Reject: Missing connection params`);
-        ws.close(1008, 'Missing Params');
-        return;
-    }
-
-    const res = await db.query(`
-        SELECT clients.id, users.username 
-        FROM clients 
-        JOIN users ON clients.user_id = users.id 
-        WHERE users.username = $1 AND clients.client_slug = $2 AND clients.api_key = $3
-    `, [username, slug, apiKey]);
-
-    const client = res.rows[0];
-
-    if (!client) {
-      console.log(`[WS] 🛑 Reject: Invalid Creds for ${username}/${slug}`);
-      ws.close(1008, 'Invalid Credentials');
-      return;
-    }
 
     const tunnelId = `${username}/${slug}`;
     
@@ -158,9 +194,6 @@ async function verifyAccess(req, res, next) {
   if (req.method === 'OPTIONS') return next();
 
   const { username, clientid } = req.params;
-  const incomingIP = req.ip || req.connection.remoteAddress;
-
-  console.log(`[HTTP] Request from ${incomingIP} -> /users/${username}/${clientid}`);
 
   try {
       const userRes = await db.query('SELECT id FROM users WHERE username = $1', [username]);
@@ -175,7 +208,7 @@ async function verifyAccess(req, res, next) {
       const token = authHeader.replace('Bearer ', '').trim();
       if (token !== client.api_key) return sendError(res, 401, 'Invalid API Key');
 
-      await db.query('UPDATE clients SET last_seen_ip = $1 WHERE id = $2', [incomingIP, client.id]);
+      await db.query('UPDATE clients SET last_seen_ip = $1 WHERE id = $2', [req.ip || req.connection.remoteAddress, client.id]);
 
       next();
   } catch (e) {

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Global Mailer // Admin</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="wrap" style="max-width: 1400px;">
+    <header>
+      <div class="brand">
+        <span style="color:var(--danger)">ADMIN MAILER</span>
+      </div>
+      <nav>
+        <a href="/admin">← Back to Stats</a>
+      </nav>
+    </header>
+
+    <div class="tile">
+      <div class="kicker">Dispatch Global Communication</div>
+      
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div style="background: rgba(255,0,0,0.1); color: var(--danger); padding: 15px; border-radius: 4px; margin-bottom: 20px; border: 1px solid var(--danger);">
+          <%= error %>
+        </div>
+      <% } %>
+
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div style="background: rgba(0,255,0,0.1); color: #4ade80; padding: 15px; border-radius: 4px; margin-bottom: 20px; border: 1px solid #4ade80;">
+          <%= success %>
+        </div>
+      <% } %>
+
+      <form action="/admin/mailer" method="POST" style="display: flex; flex-direction: column; gap: 15px;">
+        <div>
+          <label class="muted" style="display:block; margin-bottom: 5px;">Target Audience</label>
+          <select name="target" style="width: 100%; padding: 12px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; font-size: 1rem;">
+            <option value="all">All Verified Users (Important Announcements)</option>
+            <option value="mailing_list">Mailing List Subscribers Only</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="muted" style="display:block; margin-bottom: 5px;">Email Subject</label>
+          <input type="text" name="subject" required style="width: 100%;" placeholder="e.g., Important API Changes">
+        </div>
+
+        <div>
+          <label class="muted" style="display:block; margin-bottom: 5px;">Email Body (HTML supported)</label>
+          <textarea name="body" required style="width: 100%; min-height: 250px; padding: 12px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; font-family: var(--mono); line-height: 1.5; resize: vertical;" placeholder="<p>Hello,</p><br><p>Your message here...</p>"></textarea>
+        </div>
+
+        <button type="submit" class="btn-primary" style="align-self: flex-start; margin-top: 10px;" onclick="return confirm('Are you sure you want to broadcast this email? This cannot be undone.');">Broadcast Email</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
