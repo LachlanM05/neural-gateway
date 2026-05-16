@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,18 +8,20 @@
   <link rel="stylesheet" href="/style.css" />
   <script>
     function copyKey(el, key) {
-        navigator.clipboard.writeText(key);
-        const original = el.innerHTML;
-        el.innerHTML = '<span style="color:var(--ok)">COPIED!</span>';
-        setTimeout(() => { el.innerHTML = original; }, 1500);
+      navigator.clipboard.writeText(key);
+      const original = el.innerHTML;
+      el.innerHTML = '<span style="color:var(--ok)">COPIED!</span>';
+      setTimeout(() => { el.innerHTML = original; }, 1500);
     }
   </script>
 </head>
+
 <body>
   <div class="wrap">
     <header>
       <div class="brand">
-        <img src="https://lachlanm05.com/assets/84118320.png" alt="Lachlan" style="width:32px; height:32px; border-radius:50%; border:1px solid var(--border);">
+        <img src="https://lachlanm05.com/assets/84118320.png" alt="Lachlan"
+          style="width:32px; height:32px; border-radius:50%; border:1px solid var(--border);">
         <span>Neural Gateway</span>
       </div>
       <nav>
@@ -34,7 +37,8 @@
         <h3>Hardware Link</h3>
         <p class="muted">Where should we look for your local AI? If unsure, leave empty.</p>
         <form action="/update-url" method="POST" style="display:flex; gap:10px; margin-top:15px;">
-          <input type="text" name="home_url" value="<%= user.home_url || '' %>" placeholder="e.g. http://127.0.0.1:11434" style="margin-bottom:0;">
+          <input type="text" name="home_url" value="<%= user.home_url || '' %>"
+            placeholder="e.g. http://127.0.0.1:11434" style="margin-bottom:0;">
           <button type="submit" class="btn">Save</button>
         </form>
       </div>
@@ -44,11 +48,9 @@
         <h3>Client Bridge</h3>
         <p class="muted">Secure tunnel software for Windows/Linux.</p>
         <div style="margin-top: 15px;">
-          <button
-             class="btn-primary"
-             onclick="window.location.href='https://lachlanm05.com/ai/updater/Neural Gateway Setup 1.2.8.exe'"
-          >
-              Download .EXE
+          <button class="btn-primary"
+            onclick="window.location.href='https://thelit.club/api/neural/release/Neural%20Gateway%20Setup%201.3.0.exe'">
+            Download .EXE
           </button>
         </div>
       </div>
@@ -57,74 +59,78 @@
     <section class="grid">
       <div class="tile">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h3>Active Neural Clients</h3>
-            <button onclick="document.getElementById('newClientForm').classList.toggle('hidden')" class="btn-primary" style="font-size:0.8rem;">+ New Client</button>
+          <h3>Active Neural Clients</h3>
+          <button onclick="document.getElementById('newClientForm').classList.toggle('hidden')" class="btn-primary"
+            style="font-size:0.8rem;">+ New Client</button>
         </div>
 
-        <div id="newClientForm" class="hidden" style="margin-bottom:20px; padding:15px; background:var(--bg-soft); border-radius:8px; border:1px solid var(--border);">
-            <form action="/create-client" method="POST" style="display:flex; gap:10px; flex-wrap:wrap;">
-                <input type="text" name="slug" placeholder="Client Name (e.g. coolclient)" required style="flex:1; margin:0;">
-                <button type="submit" class="btn-primary">Create Client</button>
-            </form>
+        <div id="newClientForm" class="hidden"
+          style="margin-bottom:20px; padding:15px; background:var(--bg-soft); border-radius:8px; border:1px solid var(--border);">
+          <form action="/create-client" method="POST" style="display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="text" name="slug" placeholder="Client Name (e.g. coolclient)" required
+              style="flex:1; margin:0;">
+            <button type="submit" class="btn-primary">Create Client</button>
+          </form>
         </div>
 
         <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Client Identity</th>
-              <th>Endpoint URL</th>
-              <th>API Key</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% clients.forEach(c => { %>
+          <table>
+            <thead>
               <tr>
-              <td>
-                <div style="font-weight:700; font-size:1rem; color:var(--text); margin-bottom:4px;">
-                    <%= c.client_slug %>
-                </div>
+                <th>Client Identity</th>
+                <th>Endpoint URL</th>
+                <th>API Key</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% clients.forEach(c=> { %>
+                <tr>
+                  <td>
+                    <div style="font-weight:700; font-size:1rem; color:var(--text); margin-bottom:4px;">
+                      <%= c.client_slug %>
+                    </div>
 
-                <div style="font-size:0.75rem; color:var(--muted); line-height:1.4;">
-                   <% if(c.app_uptime > 0) { %>
-                       <span style="color:var(--ok);">● Online</span> (<%= Math.round(c.app_uptime/60) %>m)
-                   <% } else { %>
-                       <span style="color:var(--danger);">● Offline</span>
-                   <% } %>
-                   <br>
-                   <% if(c.hardware_info) {
-                      try {
-                          const hw = typeof c.hardware_info === 'string' ? JSON.parse(c.hardware_info) : c.hardware_info;
-                   %>
-                        <%= hw.cpu %> • <%= hw.ram %>
-                   <% } catch(e){ console.error(e); } } %>
-                </div>
-              </td>
+                    <div style="font-size:0.75rem; color:var(--muted); line-height:1.4;">
+                      <% if(c.app_uptime> 0) { %>
+                        <span style="color:var(--ok);">● Online</span> (<%= Math.round(c.app_uptime/60) %>m)
+                          <% } else { %>
+                            <span style="color:var(--danger);">● Offline</span>
+                            <% } %>
+                              <br>
+                              <% if(c.hardware_info) { try { const hw=typeof c.hardware_info==='string' ?
+                                JSON.parse(c.hardware_info) : c.hardware_info; %>
+                                <%= hw.cpu %> • <%= hw.ram %>
+                                    <% } catch(e){ console.error(e); } } %>
+                    </div>
+                  </td>
 
-              <td class="col-url">
-                <code style="display:block; padding:8px; color:var(--accent);">
+                  <td class="col-url">
+                    <code style="display:block; padding:8px; color:var(--accent);">
                     https://api.lachlanm05.com/users/<%= user.username %>/<%= c.client_slug %>/v1/chat/completions
                 </code>
-                <div style="margin-top:5px; font-size:0.75rem; color:var(--muted);">
-                    Last Seen IP: <%= c.last_seen_ip || 'N/A' %>
-                </div>
-              </td>
+                    <div style="margin-top:5px; font-size:0.75rem; color:var(--muted);">
+                      Last Seen IP: <%= c.last_seen_ip || 'N/A' %>
+                    </div>
+                  </td>
 
-              <td>
-                <div class="apikey-badge" onclick="copyKey(this, '<%= c.api_key %>')" title="Click to copy">
-                    <span class="icon">🔑</span>
-                    <span class="mask">sk-•••••••</span>
-                </div>
-              </td>
-            </tr>
-            <% }) %>
+                  <td>
+                    <div class="apikey-badge" onclick="copyKey(this, '<%= c.api_key %>')" title="Click to copy">
+                      <span class="icon">🔑</span>
+                      <span class="mask">sk-•••••••</span>
+                    </div>
+                  </td>
+                </tr>
+                <% }) %>
 
-            <% if(clients.length === 0) { %>
-                <tr><td colspan="3" style="text-align:center; padding:30px; color:var(--muted);">No clients created yet.</td></tr>
-            <% } %>
+                  <% if(clients.length===0) { %>
+                    <tr>
+                      <td colspan="3" style="text-align:center; padding:30px; color:var(--muted);">No clients created
+                        yet.</td>
+                    </tr>
+                    <% } %>
 
-          </tbody>
-        </table>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -135,7 +141,10 @@
   </div>
 
   <style>
-    .hidden { display: none; }
+    .hidden {
+      display: none;
+    }
   </style>
 </body>
+
 </html>
