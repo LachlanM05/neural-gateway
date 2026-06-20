@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import db from '../db.js';
+import rateLimit from 'express-rate-limit';
 import { sendVerificationEmail, sendPasswordResetEmail, sendGlobalEmail } from './mailer.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +15,16 @@ const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 3333;
 const IS_PROD = process.env.NODE_ENV === 'production';
 const app = express();
+
+// Rate limite for login and registration to prevent abuse
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 7, // limit each IP to 7 requests per windowMs
+  message: "Too many attempts from this IP, please try again after 15 minutes",
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: { trustProxy: false },
+});
 
 app.set('trust proxy', true); 
 
@@ -74,7 +85,7 @@ app.get('/login', (req, res) => {
   res.render('login', { verified, error });
 });
 
-app.post('/login', async (req, res, next) => {
+app.post('/login', authLimiter, async (req, res, next) => {
   const { username, password } = req.body;
   const ip = req.ip;
 
@@ -123,7 +134,31 @@ app.get('/register', (req, res) => {
   res.render('register');
 });
 
-app.post('/register', async (req, res) => {
+app.post('/register', authLimiter, async (req, res) => {
+  // Verify Turnstile
+  const turnstileToken = req.body['cf-turnstile-response'];
+
+  // kick if no token
+  if (!turnstileToken) {
+    console.log(`[PM2] REGISTRATION FAILED: No Turnstile token from IP ${req.ip}`);
+    return res.status(400).send('Bot validation failed, please try again.');
+  }
+
+  const formData = new FormData();
+  formData.append('secret', process.env.TURNSTILE_SECRET);
+  formData.append('response', turnstileToken);
+  formData.append('remoteip', req.ip);
+
+  const result = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    body: formData,
+    method: 'POST',
+  });
+
+  const outcome = await result.json();
+  if (!outcome.success) {
+    return res.status(403).send('Bot validation failed, please try again.');
+  }
+
   const { username, password, email, mailing_list } = req.body;
   if (!email || !username || !password) return res.send('All fields required.');
 
@@ -180,7 +215,7 @@ app.get('/forgot-password', (req, res) => {
   res.render('forgot_password', { error: req.query.error, success: req.query.success });
 });
 
-app.post('/forgot-password', async (req, res) => {
+app.post('/forgot-password', authLimiter, async (req, res) => {
   const { email } = req.body;
   const ip = req.ip;
   console.log(`[PM2] PASSWORD RESET REQUEST: Email '${email}' from IP ${ip}`);
