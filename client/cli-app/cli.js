@@ -9,9 +9,9 @@ const si = require('systeminformation');
 
 // conf consts
 const CONFIG_FILE = path.join(process.cwd(), 'gateway.conf');
-const CURRENT_VERSION = '1.0.0'; 
+const CURRENT_VERSION = '1.3.0'; 
 // expects a simple json response
-const UPDATE_CHECK_URL = 'https://lachlanm05.com/ai/cli/updater/version.json';
+const UPDATE_CHECK_URL = 'https://thelit.club/api/neural/cli/version.json';
 const DASHBOARD_URL = 'https://ai.lachlanm05.com';
 const GATEWAY_WS = 'wss://api.lachlanm05.com/tunnel';
 const LOCAL_OLLAMA = 'http://127.0.0.1:11434';
@@ -191,17 +191,18 @@ async function connectTunnel() {
     socket = new WebSocket(wsUrl);
     
     socket.on('open', () => {
+        isConnected = true;
         console.log('Connected (Tunnel Active)');
         
         // Initial transmission
-        sendSystemStats(socket);
+        if (!optOutStats) sendSystemStats(socket);
 
         // Heartbeat to keep connection alive and update online status/uptime
         clearInterval(heartbeatInterval);
         heartbeatInterval = setInterval(() => {
             if (socket.readyState === WebSocket.OPEN) {
                 socket.ping(); 
-                sendSystemStats(socket);
+                if (!optOutStats) sendSystemStats(socket);
             }
         }, 30000);
     });
@@ -220,6 +221,7 @@ async function connectTunnel() {
                     url: `${LOCAL_OLLAMA}/${req.path}`,
                     data: req.body,
                     responseType: 'stream',
+                    timeout: 300000,
                     validateStatus: () => true 
                 });
 
