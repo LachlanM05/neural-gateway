@@ -212,21 +212,65 @@ async function connectTunnel() {
             log(`Processing Request: ${req.method} ${req.path}`, 'NET');
             
             // forward to ollama
-            const response = await axios({
-                method: req.method,
-                url: `${LOCAL_OLLAMA}/${req.path}`,
-                data: req.body,
-                timeout: 300000, // 5 min timeout for slow response
-                validateStatus: () => true 
-            });
+            const isStream = req.body && req.body.stream === true;
+            
+            if (isStream) {
+                const response = await axios({
+                    method: req.method,
+                    url: `${LOCAL_OLLAMA}/${req.path}`,
+                    data: req.body,
+                    responseType: 'stream',
+                    validateStatus: () => true 
+                });
 
-            log(`Ollama Response: ${response.status}`, 'INFO');
+                log(`Ollama Stream Response: ${response.status}`, 'INFO');
 
-            socket.send(JSON.stringify({
-                requestId: req.requestId,
-                status: response.status,
-                data: response.data
-            }));
+                response.data.on('data', (chunk) => {
+                    if (socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({
+                            requestId: req.requestId,
+                            isStreamChunk: true,
+                            data: chunk.toString('utf-8')
+                        }));
+                    }
+                });
+
+                response.data.on('end', () => {
+                    if (socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({
+                            requestId: req.requestId,
+                            isStreamEnd: true
+                        }));
+                    }
+                });
+
+                response.data.on('error', (err) => {
+                    log(`Ollama Stream Error: ${err.message}`, 'ERROR');
+                    if (socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({
+                            requestId: req.requestId,
+                            status: 502,
+                            data: { error: 'Ollama Stream Error: ' + err.message }
+                        }));
+                    }
+                });
+            } else {
+                const response = await axios({
+                    method: req.method,
+                    url: `${LOCAL_OLLAMA}/${req.path}`,
+                    data: req.body,
+                    timeout: 300000, // 5 min timeout for slow response
+                    validateStatus: () => true 
+                });
+
+                log(`Ollama Response: ${response.status}`, 'INFO');
+
+                socket.send(JSON.stringify({
+                    requestId: req.requestId,
+                    status: response.status,
+                    data: response.data
+                }));
+            }
 
         } catch (e) {
             log(`Ollama Error: ${e.message}`, 'ERROR');

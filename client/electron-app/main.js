@@ -259,28 +259,104 @@ async function connectTunnel(username, apiKey, slug) {
       const req = JSON.parse(data);
       sendToUI(`Processing: ${req.method} ...`);
 
-      // forward to ollama
-      const response = await axios({
-        method: req.method,
-        url: `${LOCAL_OLLAMA}/${req.path}`,
-        data: req.body,
-        timeout: 300000,
-        validateStatus: () => true,
-      });
+      const isStream = req.body && req.body.stream === true;
 
-      sendToUI(`Sent Response: ${response.status}`);
+      if (isStream) {
+        // stream mode
+        // use native http/s module to stream data
+        // instead of axios which buffers the entire response
+        const url = new URL(`${LOCAL_OLLAMA}/${req.path}`);
+        const httpModule = url.protocol === 'https:' ? require('https') : require('http');
 
-      socket.send(
-        JSON.stringify({
-          requestId: req.requestId,
-          status: response.status,
-          data: response.data,
-        }),
-      );
+        const options = {
+          hostname: url.hostname,
+          port: url.port,
+          path: url.pathname + url.search,
+          method: req.method,
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 300000,
+        };
 
-      setTimeout(() => {
-        if (isConnected) sendToUI("Connected (Idle)");
-      }, 2000);
+        const ollamaReq = httpModule.request(options, (ollamaRes) => {
+          ollamaRes.on('data', (chunk) => {
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({
+                requestId: req.requestId,
+                isStreamChunk: true,
+                data: chunk.toString(),
+              }));
+            }
+          });
+
+          ollamaRes.on('end', () => {
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({
+                requestId: req.requestId,
+                isStreamEnd: true,
+              }));
+            }
+            sendToUI(`Sent Streamed Response`);
+            setTimeout(() => {
+              if (isConnected) sendToUI("Connected (Idle)");
+            }, 2000);
+          });
+
+          ollamaRes.on('error', (err) => {
+            sendToUI(`Ollama Stream Error: ${err.message}`);
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({
+                requestId: req.requestId,
+                status: 502,
+                data: { error: "Ollama Stream Error: " + err.message },
+              }));
+            }
+          });
+        });
+
+        ollamaReq.on('error', (err) => {
+          sendToUI(`Ollama Request Error: ${err.message}`);
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              requestId: req.requestId,
+              status: 502,
+              data: { error: "Local Client Error: " + err.message },
+            }));
+          }
+        });
+
+        ollamaReq.on('timeout', () => {
+          ollamaReq.destroy(new Error('Ollama request timed out'));
+        });
+
+        if (req.body) {
+          ollamaReq.write(JSON.stringify(req.body));
+        }
+        ollamaReq.end();
+
+      } else {
+        // old stream mode
+        const response = await axios({
+          method: req.method,
+          url: `${LOCAL_OLLAMA}/${req.path}`,
+          data: req.body,
+          timeout: 300000,
+          validateStatus: () => true,
+        });
+
+        sendToUI(`Sent Response: ${response.status}`);
+
+        socket.send(
+          JSON.stringify({
+            requestId: req.requestId,
+            status: response.status,
+            data: response.data,
+          }),
+        );
+
+        setTimeout(() => {
+          if (isConnected) sendToUI("Connected (Idle)");
+        }, 2000);
+      }
     } catch (e) {
       sendToUI(`Ollama Error: ${e.message}`);
       // tell gateway we failed

@@ -174,12 +174,48 @@ wss.on('connection', async (ws, req, client) => {
             // Normal model response processing
             const pending = pendingRequests.get(response.requestId);
             if (pending) {
-                db.query('INSERT INTO request_logs (client_id, model, duration_ms) VALUES ($1, $2, $3)', 
-                    [client.id, pending.model || 'unknown', Date.now() - pending.startTime]
-                ).catch(e => console.error('Stats Log Error:', e));
+                if (pending.keepAliveInterval) {
+                    clearInterval(pending.keepAliveInterval);
+                    pending.keepAliveInterval = null;
+                }
 
-                pending.res.status(response.status || 200).json(response.data);
-                pendingRequests.delete(response.requestId);
+                if (response.isStreamChunk) {
+                    if (!pending.headersSent) {
+                        pending.res.setHeader('Content-Type', 'application/x-ndjson');
+                        pending.res.setHeader('Cache-Control', 'no-cache');
+                        pending.res.setHeader('Connection', 'keep-alive');
+                        pending.res.setHeader('X-Accel-Buffering', 'no');
+                        pending.res.flushHeaders();
+                        pending.headersSent = true;
+                    }
+                    if (!pending.res.writableEnded) {
+                        pending.res.write(response.data);
+                    }
+                } else if (response.isStreamEnd) {
+                    if (pending.keepAliveInterval) {
+                        clearInterval(pending.keepAliveInterval);
+                        pending.keepAliveInterval = null;
+                    }
+                    db.query('INSERT INTO request_logs (client_id, model, duration_ms) VALUES ($1, $2, $3)', 
+                        [client.id, pending.model || 'unknown', Date.now() - pending.startTime]
+                    ).catch(e => console.error('Stats Log Error:', e));
+                    if (!pending.res.writableEnded) {
+                        pending.res.end();
+                    }
+                    pendingRequests.delete(response.requestId);
+                } else {
+                    db.query('INSERT INTO request_logs (client_id, model, duration_ms) VALUES ($1, $2, $3)', 
+                        [client.id, pending.model || 'unknown', Date.now() - pending.startTime]
+                    ).catch(e => console.error('Stats Log Error:', e));
+
+                    if (pending.headersSent) {
+                        pending.res.write(JSON.stringify(response.data));
+                        pending.res.end();
+                    } else {
+                        pending.res.status(response.status || 200).json(response.data);
+                    }
+                    pendingRequests.delete(response.requestId);
+                }
             }
         } catch (e) { console.error('[WS] Msg Error:', e); }
     });
@@ -229,15 +265,49 @@ async function handlePassthrough(req, res) {
   const requestId = Date.now() + '-' + crypto.randomBytes(4).toString('hex');
   const modifiedBody = req.body || {};
   
-  if (modifiedBody.stream) {
-      modifiedBody.stream = false; 
-  }
+  const isStream = modifiedBody.stream === true;
 
-  pendingRequests.set(requestId, { 
+  const pending = { 
     res, 
     startTime: Date.now(), 
-    model: modifiedBody.model 
-  });
+    model: modifiedBody.model,
+    headersSent: false,
+    isStream
+  };
+
+  // for streaming requests, immediately flush headers so Cloudflare sees activity
+  if (isStream) {
+    res.setHeader('Content-Type', 'application/x-ndjson');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.status(200);
+    res.flushHeaders();
+    pending.headersSent = true;
+  }
+
+  // keep-alive: send periodic bytes to prevent Cloudflare 524
+  pending.keepAliveInterval = setInterval(() => {
+    const p = pendingRequests.get(requestId);
+    if (p && !res.writableEnded) {
+      if (p.isStream) {
+        // ignored by ndjson parser, but keeps conn alive
+        p.res.write(': keep-alive\n\n');
+      } else {
+        // for non streaming requests, send a single space to keep conn alive
+        // JSON.parse() ignores leading whitespace
+        if (!p.headersSent) {
+          p.res.setHeader('Content-Type', 'application/json');
+          p.res.status(200);
+          p.res.flushHeaders();
+          p.headersSent = true;
+        }
+        p.res.write(' ');
+      }
+    }
+  }, 15000);
+
+  pendingRequests.set(requestId, pending);
 
   tunnel.send(JSON.stringify({
     requestId,
@@ -248,7 +318,15 @@ async function handlePassthrough(req, res) {
 
   setTimeout(() => {
     if (pendingRequests.has(requestId)) {
-      pendingRequests.get(requestId).res.status(504).json({ error: 'Gateway Timeout: GPU took too long.' });
+      const p = pendingRequests.get(requestId);
+      if (p.keepAliveInterval) clearInterval(p.keepAliveInterval);
+      if (!res.writableEnded) {
+        if (p.headersSent) {
+            p.res.end(JSON.stringify({ error: 'Gateway Timeout: GPU took too long.' }));
+        } else {
+            p.res.status(504).json({ error: 'Gateway Timeout: GPU took too long.' });
+        }
+      }
       pendingRequests.delete(requestId);
     }
   }, 300000);
